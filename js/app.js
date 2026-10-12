@@ -10,8 +10,8 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "6";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
-const DATE_VERSION_APP = "2026-10-12";
+const VERSION_APP = "7";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const DATE_VERSION_APP = "2026-10-13";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
 const MOIS_NOMS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
@@ -43,6 +43,40 @@ const PROTECTIONS = {
 };
 const STATUTS_A_RECOLTER = ["recolter", "retard", "cueillette"];
 
+/* ---------- Plantes (base + plantes personnalisées) ---------- */
+const PLANTES_PAR_ID = Object.fromEntries(PLANTS_DB.map(p => [p.id, p]));
+
+function nettoyerPlantePerso(p) {
+  if (!p || !p.nom) return null;
+  const mois = a => [...new Set((Array.isArray(a) ? a : []).map(Number).filter(m => m >= 1 && m <= 12))].sort((x, y) => x - y);
+  const min = Math.max(0, Math.round(+p.dureeJoursMin || 0));
+  return {
+    id: /^perso-/.test(String(p.id || "")) ? String(p.id) : "perso-" + creerId(),
+    nom: String(p.nom).trim().slice(0, 40) || "Ma plante",
+    categorie: ["legume", "fruit", "aromate", "fleur"].includes(p.categorie) ? p.categorie : "legume",
+    famille: FAMILIES[p.famille] ? p.famille : "autre",
+    moisSemis: mois(p.moisSemis), moisPlantation: mois(p.moisPlantation), moisRecolte: mois(p.moisRecolte),
+    dureeJoursMin: min, dureeJoursMax: Math.max(min, Math.round(+p.dureeJoursMax || 0)),
+    exposition: String(p.exposition || "soleil").slice(0, 60),
+    espacementCm: Math.max(0, Math.round(+p.espacementCm || 0)),
+    conseilCourt: p.conseilCourt ? String(p.conseilCourt).slice(0, 200) : null,
+    conseilDetail: null,
+    icone: String(p.icone || "").trim().slice(0, 4),
+    perso: true
+  };
+}
+// Ajoute les plantes personnalisées à la base (et retire les anciennes)
+function appliquerPlantesPerso(liste) {
+  for (let i = PLANTS_DB.length - 1; i >= 0; i--) {
+    if (PLANTS_DB[i].perso) { delete PLANTES_PAR_ID[PLANTS_DB[i].id]; PLANTS_DB.splice(i, 1); }
+  }
+  liste.forEach(p => {
+    PLANTS_DB.push(p);
+    PLANTES_PAR_ID[p.id] = p;
+    if (p.icone) PLANT_ICONS[p.id] = p.icone;
+  });
+}
+
 /* ---------- État global ---------- */
 
 let etat = migrer(chargerEtat());
@@ -56,6 +90,8 @@ const ui = {
   rechercheSaisons: "",
   vueSaisons: "plan",
   filtrePlan: "toutes",
+  vueCultures: "cultures",
+  anneeFrise: new Date().getFullYear(),
   editionDisposition: false,
   resultatsCommune: null,
   rechercheCommuneEnCours: false,
@@ -146,6 +182,9 @@ function etatParDefaut() {
     parcelles: [{ id: creerId(), nom: "Carré n°1", largeur: 3, hauteur: 3, posX: 0, posY: 0, cases: {}, protections: {}, historique: [] }],
     journal: [],
     projets: [],
+    plantesPerso: [],
+    graines: [],
+    courses: [],
     reglages: { lieu: null, derniereSauvegarde: null }
   };
 }
@@ -161,8 +200,23 @@ function migrer(e) {
   e.journal = Array.isArray(e.journal) ? e.journal : [];
   e.journal.forEach(j => {
     if (!j.id) j.id = creerId();
+    j.photos = Array.isArray(j.photos) ? j.photos.filter(x => typeof x === "string") : [];
     if (!j.type || !TYPES_JOURNAL[j.type]) j.type = /^Récolte/.test(j.texte || "") ? "recolte" : "note";
   });
+  // Plantes personnalisées : ajoutées à la base avant tout le reste
+  e.plantesPerso = (Array.isArray(e.plantesPerso) ? e.plantesPerso : []).map(nettoyerPlantePerso).filter(Boolean);
+  appliquerPlantesPerso(e.plantesPerso);
+  // Réserve de graines et liste de courses
+  e.graines = (Array.isArray(e.graines) ? e.graines : []).filter(g => g && (g.nom || PLANTS_DB.some(p => p.id === g.planteId)))
+    .map(g => ({
+      id: g.id || creerId(),
+      planteId: PLANTS_DB.some(p => p.id === g.planteId) ? g.planteId : "",
+      nom: String(g.nom || "").slice(0, 60), variete: String(g.variete || "").slice(0, 60),
+      quantite: String(g.quantite || "").slice(0, 40), peremption: Number.isFinite(+g.peremption) && +g.peremption > 0 ? Math.round(+g.peremption) : null,
+      note: String(g.note || "").slice(0, 120)
+    }));
+  e.courses = (Array.isArray(e.courses) ? e.courses : []).filter(c => c && c.texte)
+    .map(c => ({ id: c.id || creerId(), texte: String(c.texte).slice(0, 80), fait: !!c.fait }));
   // Projets : cultures que l'on prévoit de lancer (coach des 3 mois)
   e.projets = (Array.isArray(e.projets) ? e.projets : [])
     .filter(pr => pr && PLANTS_DB.some(p => p.id === pr.planteId) && /^\d{4}-\d{2}$/.test(pr.mois || ""))
@@ -229,7 +283,6 @@ function avecAnnulation(message, action) {
    Plantes, cultures, rotation, compagnonnage
    ============================================================ */
 
-const PLANTES_PAR_ID = Object.fromEntries(PLANTS_DB.map(p => [p.id, p]));
 function planteParId(id) { return PLANTES_PAR_ID[id] || null; }
 function familleDe(plante) { return FAMILIES[plante && plante.famille] || FAMILIES.autre; }
 function iconePlante(plante) { return (plante && (PLANT_ICONS[plante.id] || CATEGORY_ICONS[plante.categorie])) || "🌱"; }
@@ -655,11 +708,11 @@ function genererCoaching() {
   // Sauvegarde
   const aDesDonnees = cultures.length > 0 || etat.journal.length > 0;
   const derniere = parseDate(etat.reglages.derniereSauvegarde);
-  if (aDesDonnees && (!derniere || joursEntre(derniere, aujourdhui()) > 30)) {
+  if (aDesDonnees && (!derniere || joursEntre(derniere, aujourdhui()) > 14)) {
     conseils.push({
       type: "conseil", icone: "💾",
-      titre: derniere ? "Dernière sauvegarde il y a plus d'un mois" : "Pense à sauvegarder ton potager",
-      texte: "Tes données ne vivent que dans ce navigateur. Exporte un fichier de sauvegarde de temps en temps.",
+      titre: derniere ? "Dernière sauvegarde il y a plus de deux semaines" : "Pense à sauvegarder ton potager",
+      texte: "Tes données ne vivent que dans ce navigateur. Envoie une sauvegarde vers ton Drive : c'est l'affaire d'un appui.",
       action: { label: "Sauvegarder", vue: "reglages" }
     });
   }
@@ -926,6 +979,7 @@ function rendrePlanTroisMois(zone) {
       <div class="carte-titre"><h2>Coach du trimestre</h2><span class="carte-sous-titre">${debut} → ${fin}</span></div>
       <p class="intro-coach">${libres > 0 ? `Tu as <strong>${libres} m² libres</strong>. ` : "Ton potager est plein pour l'instant. "}Choisis ce que tu veux cultiver ces trois prochains mois : je te propose les meilleures idées de saison, avec l'endroit le plus adapté dans ton potager, et je te rappellerai chaque étape sur l'accueil.</p>
       <div class="chips">${categories.map(([id, label]) => `<button class="chip${ui.filtrePlan === id ? " actif" : ""}" data-catplan="${id}">${label}</button>`).join("")}</div>
+      <button class="btn-discret" id="p3-agenda" style="margin-top:0.8rem">📅 Ajouter mes rappels à mon agenda</button>
     </section>
     ${projets.length ? `<section class="carte">
       <div class="carte-titre"><h2>Mon plan</h2><span class="carte-sous-titre">${nbAFaire} à faire</span></div>
@@ -942,6 +996,7 @@ function rendrePlanTroisMois(zone) {
       ${conseils}
     </section>`;
 
+  zone.querySelector("#p3-agenda").addEventListener("click", exporterAgenda);
   zone.querySelectorAll("[data-catplan]").forEach(b => b.addEventListener("click", () => { ui.filtrePlan = b.dataset.catplan; rendreSaisons(); }));
   zone.querySelectorAll("[data-prevoir]").forEach(b => b.addEventListener("click", () => { const [id, cle] = b.dataset.prevoir.split("|"); basculerProjet(id, cle); }));
   zone.querySelectorAll("[data-placer]").forEach(b => b.addEventListener("click", () => { const pr = etat.projets.find(k => k.id === b.dataset.placer); if (pr) placerProjet(pr); }));
@@ -969,7 +1024,7 @@ function conseilsDuPlan() {
       conseils.push({
         type: dernier ? "alerte" : "conseil", icone: dernier ? "⏳" : "🌱",
         titre: `${dernier ? "Dernier mois pour " + verbe : "À " + verbe + " ce mois-ci"} : ${plante.nom}`,
-        texte: `C'est dans ton plan.${nomEmpl(e)}${plante.conseilCourt ? " " + plante.conseilCourt : ""}`,
+        texte: `C'est dans ton plan.${nomEmpl(e)}${etat.graines.length && !etat.graines.some(g => g.planteId === plante.id) ? " Tu n'as pas de graines ou de plants en stock : pense à en acheter." : ""}${plante.conseilCourt ? " " + plante.conseilCourt : ""}`,
         action: e ? { label: "Planter", parcelle: e.parcelle.id, coord: e.x + "-" + e.y, plante: plante.id } : { label: "Voir le plan", vue: "saisons", sousVue: "plan" }
       });
     } else {
@@ -1862,16 +1917,28 @@ function brancherFiches(zone) {
 
 function rendreCultures() {
   const vue = document.getElementById("vue-cultures");
+  vue.innerHTML = `
+    <section class="carte carte-onglets">
+      <div class="onglets-internes" role="tablist">
+        <button role="tab" aria-selected="${ui.vueCultures === "cultures"}" data-vc="cultures">Mes cultures</button>
+        <button role="tab" aria-selected="${ui.vueCultures === "graines"}" data-vc="graines">Graines et courses</button>
+      </div>
+    </section>
+    <div id="cultures-contenu"></div>`;
+  vue.querySelectorAll("[data-vc]").forEach(b => b.addEventListener("click", () => { ui.vueCultures = b.dataset.vc; rendreCultures(); }));
+  const zone = vue.querySelector("#cultures-contenu");
+  if (ui.vueCultures === "graines") { rendreGraines(zone); return; }
+
   const groupes = regrouperCultures(listerCultures());
   if (!groupes.length) {
-    vue.innerHTML = `<section class="carte"><div class="carte-titre"><h2>Mes cultures</h2></div>
+    zone.innerHTML = `<section class="carte"><div class="carte-titre"><h2>Mes cultures</h2></div>
       <p class="vide">Aucune culture en place. Touche une case du plan pour planter quelque chose.</p>
       <button class="btn" id="btn-vers-plan">Ouvrir le plan</button></section>`;
-    vue.querySelector("#btn-vers-plan").addEventListener("click", () => allerA("plan"));
+    zone.querySelector("#btn-vers-plan").addEventListener("click", () => allerA("plan"));
     return;
   }
   const ordre = { retard: 0, recolter: 1, cueillette: 2, bientot: 3, "a-venir": 4, "cueillette-libre": 5, "en-place": 6 };
-  vue.innerHTML = etat.parcelles.map(p => {
+  zone.innerHTML = etat.parcelles.map(p => {
     const liste = groupes.filter(g => g.parcelle.id === p.id)
       .sort((a, b) => ordre[a.statut] - ordre[b.statut] || a.datePlantation - b.datePlantation);
     if (!liste.length) return "";
@@ -1880,7 +1947,7 @@ function rendreCultures() {
       ${liste.map(ligneCulture).join("")}
     </section>`;
   }).join("");
-  brancherLignesCulture(vue);
+  brancherLignesCulture(zone);
 }
 
 /* ============================================================
@@ -1895,6 +1962,8 @@ function rendreSaisons() {
         <button role="tab" aria-selected="${ui.vueSaisons === "plan"}" data-vs="plan">Mon plan 3 mois</button>
         <button role="tab" aria-selected="${ui.vueSaisons === "mois"}" data-vs="mois">Mois par mois</button>
         <button role="tab" aria-selected="${ui.vueSaisons === "calendrier"}" data-vs="calendrier">Calendrier</button>
+        <button role="tab" aria-selected="${ui.vueSaisons === "frise"}" data-vs="frise">Frise</button>
+        <button role="tab" aria-selected="${ui.vueSaisons === "rotation"}" data-vs="rotation">Rotation</button>
       </div>`;
   const brancherOnglets = () => vue.querySelectorAll("[data-vs]").forEach(b => b.addEventListener("click", () => { ui.vueSaisons = b.dataset.vs; rendreSaisons(); }));
 
@@ -1902,6 +1971,13 @@ function rendreSaisons() {
     vue.innerHTML = `<section class="carte carte-onglets">${onglets}</section><div id="plan3-contenu"></div>`;
     brancherOnglets();
     rendrePlanTroisMois(vue.querySelector("#plan3-contenu"));
+    return;
+  }
+  if (ui.vueSaisons === "frise" || ui.vueSaisons === "rotation") {
+    vue.innerHTML = `<section class="carte carte-onglets">${onglets}</section><div id="saisons-extra"></div>`;
+    brancherOnglets();
+    const zone = vue.querySelector("#saisons-extra");
+    if (ui.vueSaisons === "frise") rendreFrise(zone); else rendreRotation(zone);
     return;
   }
   vue.innerHTML = `
@@ -2006,6 +2082,11 @@ function rendreJournal() {
       </div>
       <label for="jn-texte">Ce que tu as observé ou fait</label>
       <textarea id="jn-texte" rows="2" placeholder="ex. Les limaces ont attaqué les jeunes salades : essayer un voile la prochaine fois."></textarea>
+      <div class="ligne-photo">
+        <label class="btn-discret bouton-fichier">📷 Ajouter des photos
+          <input type="file" id="jn-photo" accept="image/*" multiple hidden></label>
+        <span class="petit texte-doux" id="jn-photo-info"></span>
+      </div>
       <button class="btn" id="jn-ajouter">Ajouter au journal</button>
       <div class="journal-liste">
         ${etat.journal.length ? etat.journal.slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")).map(j => `
@@ -2014,6 +2095,7 @@ function rendreJournal() {
             <div class="entree-corps">
               <div class="entree-date">${esc(formatDate(j.date))}</div>
               <div>${esc(j.texte)}</div>
+              ${j.photos && j.photos.length ? `<div class="photos-entree">${j.photos.map(id => `<button class="photo-mini" data-photo="${id}" data-entree="${j.id}" aria-label="Voir la photo"><img alt="" data-photo-img="${id}"></button>`).join("")}</div>` : ""}
             </div>
             <button class="btn-icone" data-suppr="${j.id}" aria-label="Supprimer cette entrée">✕</button>
           </div>`).join("") : `<p class="vide">Ton journal est vide. Note tes observations, réussites et essais : ils te serviront la saison prochaine.</p>`}
@@ -2046,16 +2128,29 @@ function rendreJournal() {
         </details>`).join("")}
     </section>`;
 
-  vue.querySelector("#jn-ajouter").addEventListener("click", () => {
+  let fichiersPhotos = [];
+  vue.querySelector("#jn-photo").addEventListener("change", e => {
+    fichiersPhotos = [...e.target.files].slice(0, 6);
+    vue.querySelector("#jn-photo-info").textContent = fichiersPhotos.length ? fichiersPhotos.length + " photo" + (fichiersPhotos.length > 1 ? "s" : "") + " prête" + (fichiersPhotos.length > 1 ? "s" : "") : "";
+  });
+  vue.querySelector("#jn-ajouter").addEventListener("click", async () => {
     const texte = vue.querySelector("#jn-texte").value.trim();
-    if (!texte) { vue.querySelector("#jn-texte").focus(); return; }
+    if (!texte && !fichiersPhotos.length) { vue.querySelector("#jn-texte").focus(); return; }
     const type = vue.querySelector("#jn-type").value;
     const date = vue.querySelector("#jn-date").value || isoLocal();
-    etat.journal.unshift({ id: creerId(), date, type, texte });
+    const bouton = vue.querySelector("#jn-ajouter");
+    bouton.disabled = true;
+    const photos = [];
+    for (const f of fichiersPhotos) {
+      try { photos.push(await enregistrerPhoto(f)); } catch (e) { toast("Une photo n'a pas pu être enregistrée."); }
+    }
+    etat.journal.unshift({ id: creerId(), date, type, texte: texte || "Photo", photos });
     sauvegarder();
     rendreJournal();
     toast("Ajouté au journal.");
   });
+  chargerMiniatures(vue);
+  vue.querySelectorAll("[data-photo]").forEach(b => b.addEventListener("click", () => ouvrirPhoto(b.dataset.photo, b.dataset.entree)));
   vue.querySelectorAll("[data-suppr]").forEach(b => b.addEventListener("click", () => {
     avecAnnulation("Entrée supprimée.", () => { etat.journal = etat.journal.filter(j => j.id !== b.dataset.suppr); });
   }));
@@ -2089,15 +2184,20 @@ function rendreReglages() {
 
     <section class="carte">
       <div class="carte-titre"><h2>Sauvegarde</h2></div>
-      <p class="texte-doux">Tes données restent uniquement sur cet appareil. Exporte un fichier régulièrement pour ne rien perdre ou pour passer sur un autre appareil.</p>
+      <p class="texte-doux">Tes données restent uniquement sur cet appareil. Envoie une sauvegarde vers Google Drive régulièrement pour ne rien perdre ou pour passer sur un autre appareil. Les photos du journal sont incluses.</p>
       <p class="petit">${derniere ? `Dernière sauvegarde : ${esc(formatDate(derniere))}.` : "Aucune sauvegarde exportée pour l'instant."}
         <span id="rg-persist"></span></p>
       <div class="actions-fenetre">
-        <button class="btn" id="rg-exporter">Exporter mes données</button>
-        <label class="btn-discret bouton-fichier">Importer une sauvegarde
+        <button class="btn" id="rg-drive">☁️ Envoyer vers Google Drive</button>
+        <button class="btn-discret" id="rg-exporter">Télécharger le fichier</button>
+        <label class="btn-discret bouton-fichier">Restaurer une sauvegarde
           <input type="file" id="rg-importer" accept="application/json,.json" hidden></label>
       </div>
+      <p class="texte-doux petit">« Envoyer vers Google Drive » ouvre le menu de partage de ton téléphone : choisis Drive puis un dossier. Pour restaurer, choisis le fichier depuis Drive (ou ton téléphone).</p>
     </section>
+
+    ${carteAgendaHTML()}
+    ${carteMesPlantesHTML()}
 
     <section class="carte">
       <div class="carte-titre"><h2>Installer l'appli</h2></div>
@@ -2185,6 +2285,9 @@ function rendreReglages() {
     rendreReglages();
   });
   vue.querySelector("#rg-exporter").addEventListener("click", exporterDonnees);
+  vue.querySelector("#rg-drive").addEventListener("click", sauvegarderVersDrive);
+  brancherAgenda(vue);
+  brancherMesPlantes(vue);
   vue.querySelector("#rg-importer").addEventListener("change", e => { if (e.target.files[0]) importerDonnees(e.target.files[0]); });
   const installer = vue.querySelector("#rg-installer");
   if (installer) installer.addEventListener("click", async () => {
@@ -2208,25 +2311,29 @@ function choisirLieu(lieu) {
   allerA("accueil");
 }
 
-function exporterDonnees() {
-  etat.reglages.derniereSauvegarde = isoLocal();
-  sauvegarder();
-  const blob = new Blob([JSON.stringify(etat, null, 2)], { type: "application/json" });
+function telechargerFichier(blob, nom) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "mon-potager-breton-" + isoLocal() + ".json";
+  a.download = nom;
   document.body.appendChild(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function exporterDonnees() {
+  etat.reglages.derniereSauvegarde = isoLocal();
+  sauvegarder();
+  const blob = await construireSauvegarde();
+  telechargerFichier(blob, "mon-potager-breton-" + isoLocal() + ".json");
   rendre();
   toast("Sauvegarde exportée.");
 }
 
 function importerDonnees(fichier) {
   const lecteur = new FileReader();
-  lecteur.onload = () => {
+  lecteur.onload = async () => {
     let donnees;
     try {
       donnees = JSON.parse(lecteur.result);
@@ -2235,6 +2342,9 @@ function importerDonnees(fichier) {
       toast("Ce fichier n'est pas une sauvegarde valide de Mon Potager Breton.");
       return;
     }
+    const photos = donnees._photos;
+    delete donnees._photos;
+    if (photos) { try { await PhotosDB.importer(photos); } catch (e) { toast("Les photos n'ont pas pu être restaurées."); } }
     // On garde la commune météo si le fichier importé n'en a pas
     const lieuActuel = etat.reglages.lieu;
     avecAnnulation(`Sauvegarde importée : ${donnees.parcelles.length} parcelle(s).`, () => {
@@ -2292,7 +2402,7 @@ function toast(message, { annuler } = {}) {
    Version de l'appli : vérification et mise à jour
    ============================================================ */
 
-const FICHIERS_APPLI = ["./", "index.html", "css/style.css", "js/app.js", "js/plants-data.js", "manifest.json", "sw.js"];
+const FICHIERS_APPLI = ["./", "index.html", "css/style.css", "js/app.js", "js/plants-data.js", "js/extras.js", "manifest.json", "sw.js"];
 
 async function verifierVersion() {
   ui.verifEnCours = true;

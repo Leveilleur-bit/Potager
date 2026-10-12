@@ -1,9 +1,12 @@
 {
-  "version": "6",
-  "date": "2026-10-12",
+  "version": "7",
+  "date": "2026-10-13",
   "nouveautes": [
-    "Paillage, voile d'hivernage et bâche notés par case",
-    "Rappels d'hivernage et de fin d'hivernage dans le coach",
-    "Vérification de la version dans les Réglages"
+    "Sauvegarde vers Google Drive (photos incluses)",
+    "Rappels exportables vers l'agenda du téléphone",
+    "Frise de l'année et plan de rotation",
+    "Photos dans le journal",
+    "Réserve de graines et liste de courses",
+    "Plantes personnalisées"
   ]
 }

@@ -1051,3 +1051,59 @@ dialog .toast { bottom: calc(env(safe-area-inset-bottom) + 0.8rem); }
 .ec-protection { margin: 0.9rem 0 0.4rem; padding-top: 0.8rem; border-top: 1px dashed var(--granit-clair); }
 .ec-protection .texte-doux { margin: 0.5rem 0 0; }
 .pied-page #version-pied { font-size: 0.72rem; opacity: 0.75; }
+
+/* ---------- Onglets internes défilants (5 onglets sur mobile) ---------- */
+.onglets-internes { flex-wrap: wrap; gap: 2px; }
+.onglets-internes button { flex: 1 0 auto; white-space: nowrap; padding: 0.5rem 0.75rem; }
+
+/* ---------- Photos du journal ---------- */
+.ligne-photo { display: flex; align-items: center; gap: 0.7rem; margin: 0.2rem 0 0.8rem; flex-wrap: wrap; }
+.photos-entree { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.45rem; }
+.photo-mini { width: 72px; height: 72px; padding: 0; border: 1px solid var(--granit-clair); border-radius: 8px; overflow: hidden; background: var(--papier-fonce); }
+.photo-mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-mini.absente { opacity: 0.4; }
+.photo-grande img { width: 100%; max-height: 60vh; object-fit: contain; border-radius: 8px; background: var(--papier-fonce); display: block; }
+
+/* ---------- Rotation ---------- */
+.rot-annee { display: flex; gap: 0.7rem; align-items: baseline; padding: 0.35rem 0; border-bottom: 1px dashed var(--granit-clair); font-size: 0.88rem; }
+.rot-an { font-family: var(--font-titre); font-weight: 600; color: var(--feuillage); min-width: 2.8rem; }
+.rot-groupes { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.rot-puce { background: var(--mousse-pale); color: var(--mousse-fonce); border-radius: 99px; padding: 0.1rem 0.6rem; font-size: 0.8rem; }
+.rot-conseil { margin-top: 0.8rem; padding: 0.8rem 0.9rem; border-radius: var(--radius-petit); background: var(--cidre-pale); }
+.rot-titre { font-family: var(--font-titre); font-weight: 600; color: var(--feuillage); }
+.rot-conseil p { margin: 0.3rem 0 0.6rem; }
+
+/* ---------- Frise ---------- */
+.frise-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem; }
+.frise-nav h2 { margin: 0; }
+.frise-nav .btn-discret { min-width: 44px; font-size: 1.2rem; }
+.frise { display: flex; flex-direction: column; }
+.frise-ligne { display: grid; grid-template-columns: 6.2rem 1fr; align-items: center; gap: 0.4rem; width: 100%; text-align: left; border: 0; background: transparent; padding: 0.25rem 0; font: inherit; color: inherit; min-height: 34px; }
+button.frise-ligne:hover { background: var(--papier); }
+.frise-etiq { font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.frise-etiq small { color: var(--granit); }
+.frise-piste { position: relative; height: 20px; border-radius: 4px;
+  background-image: linear-gradient(to right, rgba(38,51,31,0.1) 1px, transparent 1px);
+  background-size: calc(100% / 12) 100%; background-color: var(--papier); }
+.frise-entete .frise-piste { height: auto; display: grid; grid-template-columns: repeat(12, 1fr); background: none; font-size: 0.68rem; color: var(--granit); text-align: center; }
+.frise-barre { position: absolute; top: 3px; height: 14px; border-radius: 7px; background: var(--couleur, var(--mousse)); }
+.frise-barre.projet { background: repeating-linear-gradient(135deg, var(--couleur) 0 5px, transparent 5px 9px); border: 1.5px dashed var(--couleur); }
+.frise-aujourdhui { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--alerte); border-radius: 1px; }
+
+/* ---------- Graines et courses ---------- */
+.graine, .plante-perso { display: flex; align-items: center; gap: 0.7rem; padding: 0.65rem 0; border-bottom: 1px dashed var(--granit-clair); }
+.graine-icone { font-size: 1.5rem; width: 2.2rem; text-align: center; flex: none; }
+.graine-corps { flex: 1; min-width: 0; }
+.graine-actions { display: flex; align-items: center; gap: 0.3rem; flex: none; }
+.course { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.45rem 0; font-size: 0.92rem; }
+.course input[type="checkbox"] { width: 20px; height: 20px; min-height: 0; accent-color: var(--mousse); vertical-align: middle; }
+.course .barre { text-decoration: line-through; color: var(--granit); }
+#cs-form { margin: 0.6rem 0; }
+
+/* ---------- Plantes personnalisées ---------- */
+.mois-choix { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; margin-bottom: 0.7rem; }
+.mois-case { position: relative; display: block; }
+.mois-case input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.mois-case span { display: flex; align-items: center; justify-content: center; height: 34px; border-radius: 6px; background: var(--papier-fonce); font-size: 0.8rem; color: var(--encre-douce); }
+.mois-case input:checked + span { background: var(--mousse); color: #fff; font-weight: 600; }
+.mois-case input:focus-visible + span { outline: 2px solid var(--feuillage); outline-offset: 1px; }

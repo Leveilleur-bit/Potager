@@ -38,6 +38,18 @@ héberger gratuitement sur **GitHub Pages**.
   protéger les cases nues dès octobre, tient compte des voiles dans les
   alertes de gel, et te dit de les retirer au printemps. Tu peux aussi
   protéger toutes les cases libres d'une parcelle d'un coup.
+- **Frise et rotation** (Saisons) : toutes tes cultures de l'année sur une
+  même page, et pour chaque parcelle l'historique des familles avec le
+  groupe conseillé l'an prochain (légumes-fruits, feuilles, racines,
+  légumineuses).
+- **Graines et courses** (Cultures) : ta réserve de sachets avec
+  péremption, et une liste de courses qui se remplit toute seule avec ce
+  qui manque pour ton plan.
+- **Photos** dans le journal (stockées sur l'appareil, incluses dans les
+  sauvegardes).
+- **Mes plantes** (Réglages) : ajoute tes propres plantes et variétés.
+- **Sauvegarde vers Google Drive** (Réglages) via le menu de partage du
+  téléphone, et **export des rappels vers l'agenda** (fichier .ics).
 - **Cultures** : chaque culture avec sa barre de progression et sa fenêtre
   de récolte estimée (les cultures qui passent l'hiver sont gérées).
 - **Saisons** : quoi semer ou récolter mois par mois, calendrier annuel de
@@ -57,7 +69,7 @@ commune choisie est envoyée.
 ## Déployer sur GitHub Pages
 
 1. Crée un nouveau dépôt GitHub et mets-y le contenu de ce dossier
-   (`index.html`, `css/`, `js/`, `icon-192.png`, `icon-512.png`, `manifest.json`, `sw.js`, ce
+   (`index.html`, `css/`, `js/` (dont `extras.js`), `icon-192.png`, `icon-512.png`, `manifest.json`, `sw.js`, ce
    fichier `README.md`) **en conservant l'arborescence** : les fichiers
    `style.css` et `app.js` doivent rester dans leurs sous-dossiers
    `css/` et `js/`, pas à la racine.
