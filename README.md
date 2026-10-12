@@ -10,25 +10,44 @@ héberger gratuitement sur **GitHub Pages**.
 
 ## Fonctionnalités
 
-- **Tableau de bord** : rappels de récolte (à venir / bientôt / en retard),
-  tâches du mois adaptées au climat breton, aperçu des semis du moment.
-- **Plan du potager** : une ou plusieurs parcelles découpées en carrés, à
-  remplir case par case (plante, date de plantation, notes). Les couleurs
-  indiquent la famille botanique pour t'aider à penser la rotation des
-  cultures.
-- **Mes cultures** : liste de toutes les cultures en cours avec leur statut.
-- **Idées & saisons** : que semer/planter et que récolter, mois par mois,
-  filtrable par légumes / fruits / aromates / fleurs.
-- **Journal & conseils** : un journal de bord personnel, des conseils mois
-  par mois et des fiches conseils générales, pensés pour le climat océanique
-  breton (pluie, vent, limaces, sols acides...).
-- **Export / import** : sauvegarde de tes données en fichier `.json`, pour
-  ne rien perdre ou changer d'appareil.
+- **Accueil** : le plan de ton potager (pastilles sur ce qui est prêt à
+  récolter), le coach du jour, la météo à 5 jours, les récoltes à venir et
+  les gestes du mois.
+- **Le coach** : conseils personnalisés selon ton potager et la météo de ta
+  commune : alertes gel avec la liste de tes cultures sensibles, coups de
+  vent, pluies douces à limaces, arrosage par temps sec, récoltes en retard,
+  mauvais voisinages, place libre à occuper, rappel de sauvegarde, astuce du
+  jour.
+- **Plan** : vue d'ensemble à l'échelle (cases de 1 m²), parcelles
+  déplaçables au doigt, détail de chaque parcelle. Touche une case pour
+  planter, noter une récolte (avec quantité) ou terminer une culture.
+  **Une case peut accueillir jusqu'à 4 cultures** (ex. tomate + basilic +
+  œillet d'Inde), chacune avec sa date, ses notes et son suivi.
+- **Rotation et compagnonnage** : en plantant, l'appli signale si la même
+  famille a occupé la case ces 3 dernières années et si les voisins
+  s'entendent bien ou mal.
+- **Cultures** : chaque culture avec sa barre de progression et sa fenêtre
+  de récolte estimée (les cultures qui passent l'hiver sont gérées).
+- **Saisons** : quoi semer ou récolter mois par mois, calendrier annuel de
+  toutes les plantes, recherche, fiches détaillées (40 plantes).
+- **Journal** : notes, semis, récoltes et problèmes, bilan des récoltes de
+  l'année, conseils mois par mois.
+- **Réglages** : commune pour la météo, export / import, installation.
+- **Annuler** : chaque suppression ou modification peut être annulée pendant
+  quelques secondes.
+- **Hors ligne et installable** (PWA) : sur téléphone, menu du navigateur →
+  « Ajouter à l'écran d'accueil ».
+
+La météo vient d'Open-Meteo (gratuit, sans compte). Seule la position de la
+commune choisie est envoyée.
 
 ## Déployer sur GitHub Pages
 
 1. Crée un nouveau dépôt GitHub et mets-y le contenu de ce dossier
-   (`index.html`, `css/`, `js/`, ce fichier `README.md`).
+   (`index.html`, `css/`, `js/`, `icons/`, `manifest.json`, `sw.js`, ce
+   fichier `README.md`) **en conservant l'arborescence** : les fichiers
+   `style.css` et `app.js` doivent rester dans leurs sous-dossiers
+   `css/` et `js/`, pas à la racine.
 2. Dans le dépôt : **Settings → Pages**.
 3. Sous « Build and deployment », choisis **Deploy from a branch**, branche
    `main` (ou `master`), dossier `/ (root)`.
@@ -58,6 +77,10 @@ python3 -m http.server 8000
   et ton micro-climat.
 - Pas de notifications push : l'appli affiche les rappels lorsque tu
   l'ouvres (adapté à une utilisation régulière).
+- Le service worker met les fichiers en cache : après avoir modifié
+  `css/style.css` ou `js/app.js`, incrémente `CACHE_VERSION` en haut de
+  `sw.js` pour forcer les appareils déjà installés à récupérer la nouvelle
+  version.
 
 ## Idées d'évolution possibles
 
