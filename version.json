@@ -1,9 +1,7 @@
 {
-  "version": "9",
+  "version": "10",
   "date": "2026-10-12",
   "nouveautes": [
-    "Nouvel onglet « Mon année » dans Saisons : planifie jusqu'à 12 mois à l'avance, le coach te rappelle chaque culture au bon moment",
-    "Le coach résume ce qui est au programme des prochains mois et prévient le mois d'avant",
-    "Asperges ajoutées, avec les soins de l'aspergère mois par mois dans le coach"
+    "Plan de l'année : les mois et les « autres idées » restent ouverts quand tu ajoutes une culture, sans remonter en haut de page"
   ]
 }

@@ -10,7 +10,7 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "9";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const VERSION_APP = "10";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
 const DATE_VERSION_APP = "2026-10-12";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
@@ -89,6 +89,7 @@ const ui = {
   moisSaisons: moisCourant(),
   rechercheSaisons: "",
   vueSaisons: "plan",
+  ouverts: new Set(),
   filtrePlan: "toutes",
   vueCultures: "cultures",
   anneeFrise: new Date().getFullYear(),
@@ -979,10 +980,10 @@ function rendrePlanTroisMois(zone, annee = false) {
     const nomMois = (mm.courant ? "Ce mois-ci" : majuscule(MOIS_NOMS[mm.mois - 1])) + (annee && mm.annee !== new Date().getFullYear() ? " " + mm.annee : "");
     const prevus = etat.projets.filter(pr => pr.mois === mm.cle && !pr.fait).length;
     const corps = `${tout.length ? visibles.map(sg => ligneSuggestion(sg, mm)).join("") : `<p class="vide">Rien de particulier à lancer dans cette catégorie ce mois-là.</p>`}
-        ${reste.length ? `<details class="coach-plus"><summary>${reste.length} autre${reste.length > 1 ? "s" : ""} idée${reste.length > 1 ? "s" : ""}</summary>${reste.map(sg => ligneSuggestion(sg, mm)).join("")}</details>` : ""}`;
+        ${reste.length ? `<details class="coach-plus" data-k="p${mm.cle}"${ui.ouverts.has("p" + mm.cle) ? " open" : ""}><summary>${reste.length} autre${reste.length > 1 ? "s" : ""} idée${reste.length > 1 ? "s" : ""}</summary>${reste.map(sg => ligneSuggestion(sg, mm)).join("")}</details>` : ""}`;
     if (annee && idx >= 3) {
       return `
-      <details class="carte mois-annee"${prevus ? " open" : ""}>
+      <details class="carte mois-annee" data-k="m${mm.cle}"${prevus || ui.ouverts.has("m" + mm.cle) ? " open" : ""}>
         <summary><span class="ma-nom">${esc(nomMois)}</span><span class="carte-sous-titre">${prevus ? prevus + " prévu" + (prevus > 1 ? "s" : "") + " · " : ""}${tout.length} idée${tout.length > 1 ? "s" : ""}</span></summary>
         ${corps}
       </details>`;
@@ -1036,6 +1037,9 @@ function rendrePlanTroisMois(zone, annee = false) {
       ${conseils}
     </section>`}`;
 
+  zone.querySelectorAll("details[data-k]").forEach(d => d.addEventListener("toggle", () => {
+    if (d.open) ui.ouverts.add(d.dataset.k); else ui.ouverts.delete(d.dataset.k);
+  }));
   zone.querySelector("#p3-agenda").addEventListener("click", exporterAgenda);
   zone.querySelectorAll("[data-catplan]").forEach(b => b.addEventListener("click", () => { ui.filtrePlan = b.dataset.catplan; rendreSaisons(); }));
   zone.querySelectorAll("[data-prevoir]").forEach(b => b.addEventListener("click", () => { const [id, cle] = b.dataset.prevoir.split("|"); basculerProjet(id, cle); }));
@@ -2020,9 +2024,11 @@ function rendreSaisons() {
   const brancherOnglets = () => vue.querySelectorAll("[data-vs]").forEach(b => b.addEventListener("click", () => { ui.vueSaisons = b.dataset.vs; rendreSaisons(); }));
 
   if (ui.vueSaisons === "plan" || ui.vueSaisons === "annee") {
+    const defilement = window.scrollY;
     vue.innerHTML = `<section class="carte carte-onglets">${onglets}</section><div id="plan3-contenu"></div>`;
     brancherOnglets();
     rendrePlanTroisMois(vue.querySelector("#plan3-contenu"), ui.vueSaisons === "annee");
+    window.scrollTo(0, defilement);
     return;
   }
   if (ui.vueSaisons === "frise" || ui.vueSaisons === "rotation") {
