@@ -29,9 +29,14 @@
         <div class="sous-titre"><span id="date-du-jour"></span> <span class="badge-saison" id="badge-saison"></span></div>
       </div>
     </div>
-    <button class="btn-reglages" data-vue="reglages" aria-label="Réglages">
-      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg>
-    </button>
+    <div class="entete-actions">
+      <button class="btn-reglages btn-synchro" id="btn-synchro" data-etat="inactif" aria-label="Synchroniser avec Google Drive" hidden>
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.6-7.95A5.5 5.5 0 0 1 17 8.5a4.5 4.5 0 0 1 .5 9.5Z"/></svg>
+      </button>
+      <button class="btn-reglages" data-vue="reglages" aria-label="Réglages">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg>
+      </button>
+    </div>
   </div>
   <svg class="entete-horizon" viewBox="0 0 880 26" preserveAspectRatio="none" aria-hidden="true">
     <path d="M0,26 L0,14 Q110,2 220,13 T440,10 T660,15 T880,8 L880,26 Z"></path>
@@ -85,6 +90,7 @@
 <script src="js/plants-data.js"></script>
 <script src="js/app.js"></script>
 <script src="js/extras.js"></script>
+<script src="js/sync.js"></script>
 <script>
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {

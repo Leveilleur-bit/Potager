@@ -14,7 +14,7 @@
    nouvelle version.
    ============================================================ */
 
-const CACHE_VERSION = "v7";
+const CACHE_VERSION = "v8";
 const CACHE_NAME = "potager-breton-" + CACHE_VERSION;
 
 const FICHIERS_A_METTRE_EN_CACHE = [
@@ -25,6 +25,7 @@ const FICHIERS_A_METTRE_EN_CACHE = [
   "./js/app.js",
   "./js/plants-data.js",
   "./js/extras.js",
+  "./js/sync.js",
   "./icon-192.png",
   "./icon-512.png"
 ];
@@ -56,6 +57,9 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(requete.url);
   // Le fichier de version n'est jamais mis en cache : il sert à savoir si l'appli est à jour
   if (url.origin === self.location.origin && url.pathname.endsWith("/version.json")) return;
+
+  // Les échanges avec Google (connexion, Drive) ne passent jamais par le cache
+  if (/(^|\.)(googleapis|google|gstatic)\.com$/.test(url.hostname) && !/fonts\.(googleapis|gstatic)\.com$/.test(url.hostname)) return;
 
   const estMemeOrigine = url.origin === self.location.origin;
 

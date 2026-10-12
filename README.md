@@ -48,8 +48,12 @@ héberger gratuitement sur **GitHub Pages**.
 - **Photos** dans le journal (stockées sur l'appareil, incluses dans les
   sauvegardes).
 - **Mes plantes** (Réglages) : ajoute tes propres plantes et variétés.
-- **Sauvegarde vers Google Drive** (Réglages) via le menu de partage du
-  téléphone, et **export des rappels vers l'agenda** (fichier .ics).
+- **Synchronisation Google Drive** (Réglages) : le même potager sur
+  téléphone et ordinateur. Les données sont copiées dans le dossier caché
+  de l'appli sur ton Drive. Demande une configuration unique d'environ
+  10 minutes (identifiant client Google gratuit, guide dans l'appli).
+- **Sauvegarde manuelle** par fichier (menu de partage du téléphone), et
+  **export des rappels vers l'agenda** (fichier .ics).
 - **Cultures** : chaque culture avec sa barre de progression et sa fenêtre
   de récolte estimée (les cultures qui passent l'hiver sont gérées).
 - **Saisons** : quoi semer ou récolter mois par mois, calendrier annuel de
@@ -69,7 +73,7 @@ commune choisie est envoyée.
 ## Déployer sur GitHub Pages
 
 1. Crée un nouveau dépôt GitHub et mets-y le contenu de ce dossier
-   (`index.html`, `css/`, `js/` (dont `extras.js`), `icon-192.png`, `icon-512.png`, `manifest.json`, `sw.js`, ce
+   (`index.html`, `css/`, `js/` (dont `extras.js` et `sync.js`), `icon-192.png`, `icon-512.png`, `manifest.json`, `sw.js`, ce
    fichier `README.md`) **en conservant l'arborescence** : les fichiers
    `style.css` et `app.js` doivent rester dans leurs sous-dossiers
    `css/` et `js/`, pas à la racine.

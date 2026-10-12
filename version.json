@@ -1,12 +1,9 @@
 {
-  "version": "7",
-  "date": "2026-10-13",
+  "version": "8",
+  "date": "2026-10-12",
   "nouveautes": [
-    "Sauvegarde vers Google Drive (photos incluses)",
-    "Rappels exportables vers l'agenda du téléphone",
-    "Frise de l'année et plan de rotation",
-    "Photos dans le journal",
-    "Réserve de graines et liste de courses",
-    "Plantes personnalisées"
+    "Synchronisation entre appareils via Google Drive (dossier privé de l'appli)",
+    "Bouton nuage dans l'en-tête pour synchroniser en un appui",
+    "Version précédente récupérable après une synchronisation"
   ]
 }

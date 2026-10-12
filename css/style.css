@@ -1107,3 +1107,21 @@ button.frise-ligne:hover { background: var(--papier); }
 .mois-case span { display: flex; align-items: center; justify-content: center; height: 34px; border-radius: 6px; background: var(--papier-fonce); font-size: 0.8rem; color: var(--encre-douce); }
 .mois-case input:checked + span { background: var(--mousse); color: #fff; font-weight: 600; }
 .mois-case input:focus-visible + span { outline: 2px solid var(--feuillage); outline-offset: 1px; }
+
+/* ---------- Synchronisation ---------- */
+.entete-actions { display: flex; gap: 0.5rem; flex: none; }
+.btn-synchro { position: relative; }
+.btn-synchro[hidden] { display: none; }
+.btn-synchro::after { content: ""; position: absolute; top: 4px; right: 4px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #26331f; display: none; }
+.btn-synchro[data-etat="attente"]::after { display: block; background: var(--cidre-vif); }
+.btn-synchro[data-etat="erreur"]::after { display: block; background: #e0624a; }
+.btn-synchro[data-etat="ok"]::after { display: block; background: #7bc47f; }
+.btn-synchro[data-etat="encours"] svg { animation: pulse-nuage 1s ease-in-out infinite; }
+@keyframes pulse-nuage { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .btn-synchro[data-etat="encours"] svg { animation: none; } }
+.conflit { display: grid; gap: 0.5rem; margin: 0.8rem 0; }
+.conflit > div { padding: 0.7rem 0.85rem; border: 1px solid var(--granit-clair); border-radius: var(--radius-petit); background: var(--carte-fond); }
+.conflit span { display: block; font-size: 0.85rem; color: var(--encre-douce); margin-top: 0.15rem; }
+.etapes { padding-left: 1.2rem; font-size: 0.88rem; }
+.etapes li { margin-bottom: 0.55rem; }
+.etapes code { background: var(--papier-fonce); padding: 0.05rem 0.35rem; border-radius: 4px; font-size: 0.8rem; word-break: break-all; }

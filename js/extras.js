@@ -162,12 +162,9 @@ async function sauvegarderVersDrive() {
     etat.reglages.derniereSauvegarde = isoLocal();
     sauvegarder();
   }
-  if (resultat === "telecharge") {
-    window.open("https://drive.google.com/drive/my-drive", "_blank", "noopener");
-  }
   rendre();
   toast(resultat === "partage" ? "Sauvegarde envoyée."
-    : resultat === "telecharge" ? "Fichier téléchargé : dépose-le dans Google Drive."
+    : resultat === "telecharge" ? "Fichier téléchargé : dépose-le où tu veux (Drive, e-mail…)."
     : "Envoi annulé.");
 }
 
@@ -240,7 +237,7 @@ function evenementsAgenda() {
     "Tu peux sortir les plants frileux : tomates, courgettes, basilic, haricots.");
   const debutProchainMois = new Date(auj.getFullYear(), auj.getMonth() + 1, 1);
   ajouter("sauvegarde", debutProchainMois, "💾 Sauvegarder mon potager",
-    "Ouvre Mon Potager Breton → Réglages → Envoyer vers Google Drive.", { repetition: "FREQ=MONTHLY;COUNT=12" });
+    "Ouvre Mon Potager Breton → Réglages → Synchroniser (ou Envoyer le fichier de sauvegarde).", { repetition: "FREQ=MONTHLY;COUNT=12" });
   return evenements;
 }
 

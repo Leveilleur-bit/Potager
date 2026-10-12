@@ -10,8 +10,8 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "7";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
-const DATE_VERSION_APP = "2026-10-13";
+const VERSION_APP = "8";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const DATE_VERSION_APP = "2026-10-12";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
 const MOIS_NOMS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
@@ -96,10 +96,13 @@ const ui = {
   resultatsCommune: null,
   rechercheCommuneEnCours: false,
   rafraichirFenetre: null,
+  empreinte: null,
   versionDistante: null,
   versionErreur: false,
   verifEnCours: false
 };
+
+ui.empreinte = JSON.stringify(etat, (k, v) => (k === "modifieLe" ? undefined : v));
 
 /* ============================================================
    Utilitaires
@@ -197,6 +200,7 @@ function chargerEtat() {
 function migrer(e) {
   if (!e || !Array.isArray(e.parcelles)) e = etatParDefaut();
   e.version = VERSION_DONNEES;
+  e.modifieLe = typeof e.modifieLe === "string" ? e.modifieLe : null;
   e.journal = Array.isArray(e.journal) ? e.journal : [];
   e.journal.forEach(j => {
     if (!j.id) j.id = creerId();
@@ -255,7 +259,26 @@ function normaliserPositions(e = etat) {
   e.parcelles.forEach(p => { p.posX = +(p.posX - minX).toFixed(2); p.posY = +(p.posY - minY).toFixed(2); });
 }
 
+// Empreinte des données (sans la date de modification) : sert à ne dater
+// que les vrais changements, pour la synchronisation
+function empreinteEtat() {
+  return JSON.stringify(etat, (k, v) => (k === "modifieLe" ? undefined : v));
+}
+// Remplace les données sans les considérer comme une modification locale
+function adopterEtat(nouveau) {
+  etat = migrer(nouveau);
+  ui.empreinte = empreinteEtat();
+  ecrireJSON(CLE_STOCKAGE, etat);
+  rendre();
+}
+
 function sauvegarder() {
+  const empreinte = empreinteEtat();
+  if (empreinte !== ui.empreinte) {
+    etat.modifieLe = new Date().toISOString();
+    ui.empreinte = empreinte;
+    if (typeof planifierSynchro === "function") planifierSynchro();
+  }
   if (!ecrireJSON(CLE_STOCKAGE, etat)) {
     toast("Enregistrement impossible : le stockage du navigateur est indisponible ou plein.");
   }
@@ -645,6 +668,8 @@ function genererCoaching() {
     });
   }
 
+  conseils.push(...conseilsSynchro());
+
   // Rappels du plan des 3 mois
   conseils.push(...conseilsDuPlan());
 
@@ -708,11 +733,13 @@ function genererCoaching() {
   // Sauvegarde
   const aDesDonnees = cultures.length > 0 || etat.journal.length > 0;
   const derniere = parseDate(etat.reglages.derniereSauvegarde);
-  if (aDesDonnees && (!derniere || joursEntre(derniere, aujourdhui()) > 14)) {
+  const synchro = typeof lireSynchro === "function" ? lireSynchro() : null;
+  const synchroRecente = !!(synchro && synchro.derniereSynchro && joursEntre(parseDate(synchro.derniereSynchro.slice(0, 10)), aujourdhui()) <= 14);
+  if (aDesDonnees && !synchroRecente && (!derniere || joursEntre(derniere, aujourdhui()) > 14)) {
     conseils.push({
       type: "conseil", icone: "💾",
       titre: derniere ? "Dernière sauvegarde il y a plus de deux semaines" : "Pense à sauvegarder ton potager",
-      texte: "Tes données ne vivent que dans ce navigateur. Envoie une sauvegarde vers ton Drive : c'est l'affaire d'un appui.",
+      texte: "Tes données ne vivent que dans ce navigateur. Active la synchronisation Google Drive ou envoie un fichier de sauvegarde.",
       action: { label: "Sauvegarder", vue: "reglages" }
     });
   }
@@ -1335,7 +1362,8 @@ function rendreCoach() {
     </details>` : "");
   zone.querySelectorAll("[data-coach]").forEach(b => b.addEventListener("click", () => {
     const a = conseils[+b.dataset.coach].action;
-    if (a.proteger) {
+    if (a.synchroniser) synchroniser({ manuel: true });
+    else if (a.proteger) {
       const cibles = casesNuesSansProtection();
       avecAnnulation(`${PROTECTIONS[a.proteger].label} noté sur ${cibles.length} case${cibles.length > 1 ? "s" : ""}.`, () => protegerCases(cibles, a.proteger));
     }
@@ -2182,18 +2210,20 @@ function rendreReglages() {
         : `<p class="vide">Aucune commune trouvée.</p>`}</div>
     </section>
 
+    ${carteSynchroHTML()}
+
     <section class="carte">
-      <div class="carte-titre"><h2>Sauvegarde</h2></div>
-      <p class="texte-doux">Tes données restent uniquement sur cet appareil. Envoie une sauvegarde vers Google Drive régulièrement pour ne rien perdre ou pour passer sur un autre appareil. Les photos du journal sont incluses.</p>
+      <div class="carte-titre"><h2>Sauvegarde manuelle</h2></div>
+      <p class="texte-doux">Un fichier de sauvegarde que tu gardes où tu veux (Drive, e-mail, ordinateur). Utile en plus de la synchronisation, ou si tu ne veux pas la configurer. Les photos du journal sont incluses.</p>
       <p class="petit">${derniere ? `Dernière sauvegarde : ${esc(formatDate(derniere))}.` : "Aucune sauvegarde exportée pour l'instant."}
         <span id="rg-persist"></span></p>
       <div class="actions-fenetre">
-        <button class="btn" id="rg-drive">☁️ Envoyer vers Google Drive</button>
+        <button class="btn-discret" id="rg-drive">📤 Envoyer le fichier (Drive, mail…)</button>
         <button class="btn-discret" id="rg-exporter">Télécharger le fichier</button>
         <label class="btn-discret bouton-fichier">Restaurer une sauvegarde
           <input type="file" id="rg-importer" accept="application/json,.json" hidden></label>
       </div>
-      <p class="texte-doux petit">« Envoyer vers Google Drive » ouvre le menu de partage de ton téléphone : choisis Drive puis un dossier. Pour restaurer, choisis le fichier depuis Drive (ou ton téléphone).</p>
+      <p class="texte-doux petit">« Envoyer le fichier » ouvre le menu de partage de ton téléphone : choisis Drive, ta messagerie… Pour restaurer, choisis le fichier depuis Drive (ou ton téléphone).</p>
     </section>
 
     ${carteAgendaHTML()}
@@ -2286,6 +2316,7 @@ function rendreReglages() {
   });
   vue.querySelector("#rg-exporter").addEventListener("click", exporterDonnees);
   vue.querySelector("#rg-drive").addEventListener("click", sauvegarderVersDrive);
+  brancherSynchro(vue);
   brancherAgenda(vue);
   brancherMesPlantes(vue);
   vue.querySelector("#rg-importer").addEventListener("change", e => { if (e.target.files[0]) importerDonnees(e.target.files[0]); });
@@ -2402,7 +2433,7 @@ function toast(message, { annuler } = {}) {
    Version de l'appli : vérification et mise à jour
    ============================================================ */
 
-const FICHIERS_APPLI = ["./", "index.html", "css/style.css", "js/app.js", "js/plants-data.js", "js/extras.js", "manifest.json", "sw.js"];
+const FICHIERS_APPLI = ["./", "index.html", "css/style.css", "js/app.js", "js/plants-data.js", "js/extras.js", "js/sync.js", "manifest.json", "sw.js"];
 
 async function verifierVersion() {
   ui.verifEnCours = true;
@@ -2464,7 +2495,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Données modifiées dans un autre onglet
   window.addEventListener("storage", e => {
-    if (e.key === CLE_STOCKAGE) { etat = migrer(chargerEtat()); rendre(); }
+    if (e.key === CLE_STOCKAGE) { etat = migrer(chargerEtat()); ui.empreinte = empreinteEtat(); rendre(); }
   });
 
   sauvegarder();
