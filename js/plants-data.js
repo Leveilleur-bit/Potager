@@ -5,6 +5,14 @@
    à ajuster selon ton micro-climat exact et la météo de l'année.
    ============================================================ */
 
+// Petites icônes par catégorie, purement décoratives
+const CATEGORY_ICONS = {
+  legume: "🥕",
+  fruit: "🍓",
+  aromate: "🌿",
+  fleur: "🌼"
+};
+
 // Familles botaniques, utiles pour la rotation des cultures
 const FAMILIES = {
   solanacees: { label: "Solanacées", color: "#a8453a" },
