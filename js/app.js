@@ -9,7 +9,7 @@
 const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
-const MAX_CULTURES_PAR_CASE = 4;
+const MAX_CULTURES_PAR_CASE = 5;
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
 const MOIS_NOMS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
@@ -638,7 +638,8 @@ const DISPOSITION_ICONES = {
   1: { taille: 44, pos: [[.5, .5]] },
   2: { taille: 34, pos: [[.3, .34], [.7, .66]] },
   3: { taille: 30, pos: [[.3, .3], [.7, .3], [.5, .72]] },
-  4: { taille: 28, pos: [[.3, .3], [.7, .3], [.3, .7], [.7, .7]] }
+  4: { taille: 28, pos: [[.3, .3], [.7, .3], [.3, .7], [.7, .7]] },
+  5: { taille: 24, pos: [[.28, .28], [.72, .28], [.5, .5], [.28, .74], [.72, .74]] }
 };
 
 function dessinerPlan(conteneur, { edition = false } = {}) {
@@ -721,8 +722,8 @@ function dessinerPlan(conteneur, { edition = false } = {}) {
         g.appendChild(rect);
 
         if (plantes.length) {
-          const mise = DISPOSITION_ICONES[Math.min(plantes.length, 4)];
-          plantes.slice(0, 4).forEach((plante, i) => {
+          const mise = DISPOSITION_ICONES[Math.min(plantes.length, 5)];
+          plantes.slice(0, 5).forEach((plante, i) => {
             const t = document.createElementNS(NS, "text");
             t.setAttribute("x", gx + x * U + mise.pos[i][0] * U);
             t.setAttribute("y", gy + y * U + mise.pos[i][1] * U);
@@ -1036,7 +1037,7 @@ function rendrePlan() {
                style="background:${fondDegrade(plantes.map(pl => familleDe(pl).color))}" title="${esc(plantes.map(pl => pl.nom).join(", "))}"
                aria-label="Case ${x + 1}-${y + 1} : ${esc(plantes.map(pl => pl.nom).join(", "))}">
                ${pastille}
-               <span class="case-icones">${plantes.slice(0, 4).map(pl => `<span>${iconePlante(pl)}</span>`).join("")}</span>
+               <span class="case-icones">${plantes.slice(0, 5).map(pl => `<span>${iconePlante(pl)}</span>`).join("")}</span>
              </button>`;
         }
       }
