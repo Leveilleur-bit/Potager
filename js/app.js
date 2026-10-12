@@ -224,7 +224,7 @@ function rendreTableauDeBord() {
       const span = document.createElement("span");
       span.className = "chip actif";
       span.style.cursor = "default";
-      span.textContent = p.nom;
+      span.textContent = (CATEGORY_ICONS[p.categorie] || "") + " " + p.nom;
       zoneIdees.appendChild(span);
     });
   }
@@ -271,13 +271,15 @@ function rendrePlan() {
           if (plante) {
             div.classList.add("occupee");
             const famille = FAMILIES[plante.famille] || FAMILIES.autre;
-            div.style.background = famille.color;
-            div.textContent = plante.nom;
+            div.style.background = `linear-gradient(155deg, ${famille.color}, ${famille.color}dd)`;
+            div.textContent = (CATEGORY_ICONS[plante.categorie] || "") + " " + plante.nom;
             div.title = plante.nom + " — planté le " + formatDate(contenu.datePlantation);
           }
         } else {
-          div.textContent = "+";
-          div.style.color = "var(--granit)";
+          const icone = document.createElement("span");
+          icone.className = "case-vide-icone";
+          icone.textContent = "+";
+          div.appendChild(icone);
         }
         if (caseSelectionnee && caseSelectionnee.parcelleId === parcelle.id && caseSelectionnee.x === x && caseSelectionnee.y === y) {
           div.classList.add("selectionnee");
@@ -538,8 +540,9 @@ function remplirFichesPlantes(zone, plantes, messageVide) {
     const famille = FAMILIES[p.famille] || FAMILIES.autre;
     const fiche = document.createElement("div");
     fiche.className = "plante-fiche";
+    fiche.style.borderLeftColor = famille.color;
     fiche.innerHTML = `
-      <h4>${p.nom} <span class="tag-famille" style="background:${famille.color}">${famille.label}</span></h4>
+      <h4>${CATEGORY_ICONS[p.categorie] || ""} ${p.nom} <span class="tag-famille" style="background:${famille.color}">${famille.label}</span></h4>
       <div class="meta">${p.exposition}${p.espacementCm ? " · espacer d'environ " + p.espacementCm + " cm" : ""}</div>
       ${p.conseilCourt ? `<div class="conseil">${p.conseilCourt}</div>` : ""}
       ${p.conseilDetail ? `<details class="accordeon" style="margin-top:0.4rem;"><summary>En savoir plus</summary><p class="conseil-detail" style="margin:0.3rem 0 0;">${p.conseilDetail}</p></details>` : ""}`;
