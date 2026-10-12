@@ -985,3 +985,54 @@ dialog .toast { bottom: calc(env(safe-area-inset-bottom) + 0.8rem); }
 @keyframes apparition { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 
 :focus-visible { outline: 2px solid var(--ardoise); outline-offset: 2px; }
+
+/* ---------- Coach des 3 mois ---------- */
+.carte-onglets { padding-bottom: 0.9rem; }
+.carte-onglets .onglets-internes { margin-bottom: 0; }
+.carte-coach3 { background: linear-gradient(160deg, var(--mousse-pale), var(--carte-fond) 70%); }
+.intro-coach { margin: 0 0 0.8rem; font-size: 0.93rem; }
+.carte-titre h2 small { font-family: var(--font-corps); font-size: 0.75rem; font-weight: 500; color: var(--granit); }
+.suggestion {
+  display: flex; flex-direction: column; gap: 0.55rem;
+  padding: 0.8rem 0.85rem; margin-bottom: 0.6rem;
+  border: 1px solid var(--granit-clair); border-left: 4px solid var(--famille, var(--mousse));
+  border-radius: var(--radius-petit); background: var(--carte-fond);
+}
+.suggestion:last-child { margin-bottom: 0; }
+.sg-titre { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; font-family: var(--font-titre); font-weight: 600; color: var(--feuillage); }
+.sg-raisons { font-size: 0.82rem; color: var(--encre-douce); margin-top: 0.2rem; }
+.sg-conseil { font-size: 0.85rem; margin-top: 0.3rem; }
+.sg-actions { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.tag-urgent, .tag-info {
+  font-family: var(--font-corps); font-size: 0.68rem; font-weight: 600;
+  padding: 0.12rem 0.5rem; border-radius: 99px; letter-spacing: 0.02em;
+}
+.tag-urgent { background: var(--cidre-pale); color: #8a5d12; }
+.tag-info { background: var(--ardoise-pale); color: var(--ardoise); }
+.btn-petit {
+  font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  padding: 0.45rem 0.85rem; border-radius: 99px; min-height: 40px;
+  border: 1.5px solid var(--mousse); background: var(--mousse); color: #fff;
+}
+.btn-petit:hover { background: var(--mousse-fonce); border-color: var(--mousse-fonce); }
+.btn-petit.prevu { background: var(--mousse-pale); color: var(--mousse-fonce); }
+.btn-petit:disabled { opacity: 0.45; cursor: not-allowed; }
+.projet { padding: 0.75rem 0.85rem; margin-bottom: 0.6rem; border-radius: var(--radius-petit); border: 1px solid var(--granit-clair); background: var(--carte-fond); }
+.projet:last-child { margin-bottom: 0; }
+.projet-fait { opacity: 0.65; }
+.projet-tete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem; }
+.projet-nom { font-family: var(--font-titre); font-weight: 600; color: var(--feuillage); }
+.projet-statut { font-size: 0.72rem; font-weight: 600; padding: 0.15rem 0.55rem; border-radius: 99px; }
+.st-maintenant { background: var(--mousse-pale); color: var(--mousse-fonce); }
+.st-dernier { background: var(--cidre-pale); color: #8a5d12; }
+.st-retard { background: var(--alerte-pale); color: var(--alerte); }
+.st-plus-tard, .st-fait { background: var(--papier-fonce); color: var(--encre-douce); }
+.projet-detail { font-size: 0.85rem; color: var(--encre-douce); margin: 0.35rem 0 0.55rem; }
+.projet-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.recolte-prevue { display: flex; justify-content: space-between; gap: 0.6rem; padding: 0.5rem 0; border-bottom: 1px dashed var(--granit-clair); font-size: 0.9rem; }
+.recolte-prevue:last-child { border-bottom: 0; }
+.recolte-prevue small { color: var(--granit); }
+.rp-quand { color: var(--mousse-fonce); font-weight: 600; text-align: right; font-size: 0.85rem; }
+.trimestre-mois ul { margin: 0.2rem 0 0.8rem; padding-left: 1.1rem; font-size: 0.9rem; }
+.trimestre-mois li { margin-bottom: 0.2rem; }
+.trimestre-mois:last-child ul { margin-bottom: 0; }
