@@ -14,7 +14,7 @@
    nouvelle version.
    ============================================================ */
 
-const CACHE_VERSION = "v5";
+const CACHE_VERSION = "v6";
 const CACHE_NAME = "potager-breton-" + CACHE_VERSION;
 
 const FICHIERS_A_METTRE_EN_CACHE = [
@@ -24,8 +24,8 @@ const FICHIERS_A_METTRE_EN_CACHE = [
   "./css/style.css",
   "./js/app.js",
   "./js/plants-data.js",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./icon-192.png",
+  "./icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {
@@ -52,7 +52,11 @@ self.addEventListener("fetch", (event) => {
   const requete = event.request;
   if (requete.method !== "GET") return;
 
-  const estMemeOrigine = new URL(requete.url).origin === self.location.origin;
+  const url = new URL(requete.url);
+  // Le fichier de version n'est jamais mis en cache : il sert à savoir si l'appli est à jour
+  if (url.origin === self.location.origin && url.pathname.endsWith("/version.json")) return;
+
+  const estMemeOrigine = url.origin === self.location.origin;
 
   if (estMemeOrigine) {
     // Cache d'abord, avec rafraîchissement silencieux en arrière-plan

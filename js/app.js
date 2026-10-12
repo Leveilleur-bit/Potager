@@ -10,6 +10,8 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
+const VERSION_APP = "6";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const DATE_VERSION_APP = "2026-10-12";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
 const MOIS_NOMS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
@@ -33,6 +35,12 @@ const STATUTS = {
   "cueillette-libre": { classe: "etat-croissance", texte: "à cueillir au besoin" },
   "en-place":         { classe: "etat-place",      texte: "en place" }
 };
+// Protections posées sur une case (paillage, voile, bâche)
+const PROTECTIONS = {
+  paillage: { label: "Paillage", icone: "🍂", conseil: "5 à 10 cm de feuilles mortes, paille ou tontes séchées : le sol reste vivant, ne se tasse pas et ne lessive pas sous la pluie." },
+  voile: { label: "Voile d'hivernage", icone: "🛡️", conseil: "Protège du gel sans priver de lumière. Lesté sur les bords, il résiste mieux au vent." },
+  bache: { label: "Bâche ou tunnel", icone: "⛺", conseil: "Abri contre pluie et gel. Pense à aérer par temps doux pour éviter les moisissures." }
+};
 const STATUTS_A_RECOLTER = ["recolter", "retard", "cueillette"];
 
 /* ---------- État global ---------- */
@@ -46,11 +54,15 @@ const ui = {
   filtreCategorie: "toutes",
   moisSaisons: moisCourant(),
   rechercheSaisons: "",
-  vueSaisons: "mois",
+  vueSaisons: "plan",
+  filtrePlan: "toutes",
   editionDisposition: false,
   resultatsCommune: null,
   rechercheCommuneEnCours: false,
-  rafraichirFenetre: null
+  rafraichirFenetre: null,
+  versionDistante: null,
+  versionErreur: false,
+  verifEnCours: false
 };
 
 /* ============================================================
@@ -131,8 +143,9 @@ function ecrireJSON(cle, valeur) {
 function etatParDefaut() {
   return {
     version: VERSION_DONNEES,
-    parcelles: [{ id: creerId(), nom: "Carré n°1", largeur: 3, hauteur: 3, posX: 0, posY: 0, cases: {}, historique: [] }],
+    parcelles: [{ id: creerId(), nom: "Carré n°1", largeur: 3, hauteur: 3, posX: 0, posY: 0, cases: {}, protections: {}, historique: [] }],
     journal: [],
+    projets: [],
     reglages: { lieu: null, derniereSauvegarde: null }
   };
 }
@@ -150,6 +163,10 @@ function migrer(e) {
     if (!j.id) j.id = creerId();
     if (!j.type || !TYPES_JOURNAL[j.type]) j.type = /^Récolte/.test(j.texte || "") ? "recolte" : "note";
   });
+  // Projets : cultures que l'on prévoit de lancer (coach des 3 mois)
+  e.projets = (Array.isArray(e.projets) ? e.projets : [])
+    .filter(pr => pr && PLANTS_DB.some(p => p.id === pr.planteId) && /^\d{4}-\d{2}$/.test(pr.mois || ""))
+    .map(pr => ({ id: pr.id || creerId(), planteId: pr.planteId, mois: pr.mois, fait: !!pr.fait }));
   e.reglages = Object.assign({ lieu: null, derniereSauvegarde: null }, e.reglages || {});
   let yLibre = 0;
   e.parcelles.forEach(p => {
@@ -166,6 +183,9 @@ function migrer(e) {
       v.forEach(c => { if (!c.id) c.id = creerId(); });
       if (v.length) p.cases[coord] = v; else delete p.cases[coord];
     });
+    p.protections = Object.fromEntries(Object.entries(p.protections && typeof p.protections === "object" ? p.protections : {})
+      .filter(([c, v]) => v && PROTECTIONS[v.type] && dansLimites(p, c))
+      .map(([c, v]) => [c, { type: v.type, date: v.date || null }]));
     p.historique = Array.isArray(p.historique) ? p.historique : [];
     if (!Number.isFinite(p.posX) || !Number.isFinite(p.posY)) { p.posX = 0; p.posY = yLibre; }
     yLibre = Math.max(yLibre, p.posY + p.hauteur + 1);
@@ -245,6 +265,8 @@ function culturesDe(parcelle, coord) {
 function ajouterCulture(parcelle, coord, donnees) {
   if (!Array.isArray(parcelle.cases[coord])) parcelle.cases[coord] = [];
   parcelle.cases[coord].push({ id: creerId(), ...donnees });
+  const projet = (etat.projets || []).find(pr => !pr.fait && pr.planteId === donnees.planteId);
+  if (projet) projet.fait = true;
 }
 function supprimerCulture(parcelle, coord, cid) {
   const reste = (parcelle.cases[coord] || []).filter(c => c.id !== cid);
@@ -265,6 +287,44 @@ function statutsParCase() {
     if (!(cle in res) || ORDRE_STATUT[c.statut] < ORDRE_STATUT[res[cle]]) res[cle] = c.statut;
   });
   return res;
+}
+
+function protectionDe(parcelle, coord) {
+  const v = parcelle.protections && parcelle.protections[coord];
+  return v && PROTECTIONS[v.type] ? v : null;
+}
+function definirProtection(parcelle, coord, type, date = isoLocal()) {
+  if (!parcelle.protections) parcelle.protections = {};
+  if (type) parcelle.protections[coord] = { type, date }; else delete parcelle.protections[coord];
+}
+// Cases vides, dans le cadre, sans protection
+function casesNuesSansProtection() {
+  const liste = [];
+  etat.parcelles.forEach(parcelle => {
+    for (let y = 0; y < parcelle.hauteur; y++)
+      for (let x = 0; x < parcelle.largeur; x++) {
+        const coord = x + "-" + y;
+        if (!culturesDe(parcelle, coord).length && !protectionDe(parcelle, coord)) liste.push({ parcelle, coord });
+      }
+  });
+  return liste;
+}
+function compterProtections() {
+  let n = 0;
+  etat.parcelles.forEach(p => Object.keys(p.protections || {}).forEach(c => { if (dansLimites(p, c) && protectionDe(p, c)) n++; }));
+  return n;
+}
+function protegerCases(cibles, type) {
+  cibles.forEach(({ parcelle, coord }) => definirProtection(parcelle, coord, type));
+  if (cibles.length) {
+    etat.journal.unshift({
+      id: creerId(), date: isoLocal(), type: "note",
+      texte: `${PROTECTIONS[type].label} : ${cibles.length} case${cibles.length > 1 ? "s" : ""} protégée${cibles.length > 1 ? "s" : ""}.`
+    });
+  }
+}
+function retirerToutesProtections(parcelles = etat.parcelles) {
+  parcelles.forEach(p => { p.protections = {}; });
 }
 
 function dansLimites(parcelle, coord) {
@@ -483,11 +543,15 @@ function genererCoaching() {
     const prochains = jours.slice(0, 4);
     const gel = prochains.find(j => j.tmin <= 1);
     if (gel) {
-      const frileuses = [...new Set(cultures.filter(c => estFrileuse(c.plante)).map(c => c.plante.nom))];
+      const sensibles = cultures.filter(c => estFrileuse(c.plante));
+      const abritee = c => ["voile", "bache"].includes((protectionDe(c.parcelle, c.coord) || {}).type);
+      const frileuses = [...new Set(sensibles.filter(c => !abritee(c)).map(c => c.plante.nom))];
       conseils.push({
         type: "alerte", icone: "❄️",
         titre: `Gel possible ${nomJour(gel.date)} (${Math.round(gel.tmin)} °C)`,
-        texte: frileuses.length
+        texte: !frileuses.length && sensibles.length
+          ? "Tes cultures sensibles sont déjà sous voile ou bâche : vérifie qu'ils sont bien lestés contre le vent."
+          : frileuses.length
           ? `Cultures sensibles chez toi : ${listeFr(frileuses.slice(0, 4))}. Couvre-les d'un voile d'hivernage la veille au soir, ou récolte ce qui peut l'être.`
           : "Couvre les jeunes semis et les plants fragiles d'un voile la veille au soir."
       });
@@ -519,6 +583,18 @@ function genererCoaching() {
     }
   }
 
+  if (majDisponible()) {
+    conseils.push({
+      type: "conseil", icone: "🔄",
+      titre: `Nouvelle version disponible (${ui.versionDistante.version})`,
+      texte: "Tu utilises la version " + VERSION_APP + ". Mets à jour pour profiter des nouveautés : tes données ne sont pas touchées.",
+      action: { label: "Mettre à jour", vue: "reglages" }
+    });
+  }
+
+  // Rappels du plan des 3 mois
+  conseils.push(...conseilsDuPlan());
+
   // Cultures en retard de récolte
   regrouperCultures(cultures).filter(c => c.statut === "retard").slice(0, 2).forEach(c => {
     conseils.push({
@@ -545,26 +621,35 @@ function genererCoaching() {
     });
   });
 
-  // Place libre
+  // Place libre, paillage et hivernage
   const { libres } = compterCases();
-  if (libres > 0) {
-    if ([11, 12, 1].includes(m)) {
+  const nues = casesNuesSansProtection().length;
+  const hiver = [10, 11, 12, 1, 2].includes(m);
+  if (hiver && nues > 0) {
+    conseils.push({
+      type: "conseil", icone: "🍂",
+      titre: `${nues} m² nu${nues > 1 ? "s" : ""} pour l'hiver : pense au paillage`,
+      texte: "Un sol nu se tasse et se lessive sous les pluies bretonnes. Couvre-le de 5 à 10 cm de feuilles mortes, de paille ou de tontes séchées (ou sème un engrais vert). Note-le ici pour t'en souvenir.",
+      action: { label: `Marquer ${nues > 1 ? "les " + nues + " cases" : "la case"} comme paillée${nues > 1 ? "s" : ""}`, proteger: "paillage" }
+    });
+  } else if (libres > 0 && ![11, 12, 1].includes(m)) {
+    const idees = PLANTS_DB.filter(p => (p.moisSemis.includes(m) || p.moisPlantation.includes(m)) && p.categorie !== "fleur");
+    if (idees.length) {
       conseils.push({
-        type: "conseil", icone: "🍂",
-        titre: `${libres} m² libres pour l'hiver`,
-        texte: "Couvre le sol nu (paille, feuilles mortes, engrais vert) : les pluies d'hiver bretonnes tassent et lessivent la terre non protégée."
+        type: "conseil", icone: "🌱",
+        titre: `${libres} m² libres à occuper`,
+        texte: `En ${MOIS_NOMS[m - 1]}, tu peux y mettre : ${listeFr(idees.slice(0, 5).map(nomCourt))}.`,
+        action: { label: "Idées de saison", vue: "saisons", sousVue: "plan" }
       });
-    } else {
-      const idees = PLANTS_DB.filter(p => (p.moisSemis.includes(m) || p.moisPlantation.includes(m)) && p.categorie !== "fleur");
-      if (idees.length) {
-        conseils.push({
-          type: "conseil", icone: "🌱",
-          titre: `${libres} m² libres à occuper`,
-          texte: `En ${MOIS_NOMS[m - 1]}, tu peux y mettre : ${listeFr(idees.slice(0, 5).map(nomCourt))}.`,
-          action: { label: "Idées de saison", vue: "saisons" }
-        });
-      }
     }
+  }
+  if ([3, 4].includes(m) && compterProtections() > 0) {
+    conseils.push({
+      type: "conseil", icone: "☀️",
+      titre: "Fin d'hivernage : libère le sol",
+      texte: "Écarte le paillage là où tu vas semer pour que la terre se réchauffe, et retire les voiles et bâches quand les nuits ne gèlent plus.",
+      action: { label: "J'ai retiré les protections", retirerProtections: true }
+    });
   }
 
   // Sauvegarde
@@ -592,6 +677,328 @@ function genererCoaching() {
     conseils.push({ type: "astuce", icone: "💡", titre: "Astuce du jour : " + a.titre, texte: a.texte });
   }
 
+  return conseils;
+}
+
+/* ============================================================
+   Coach des 3 prochains mois : quoi cultiver, où, et rappels
+   ============================================================ */
+
+function cleMois(annee, mois) { return annee + "-" + String(mois).padStart(2, "0"); }
+
+function troisProchainsMois() {
+  const auj = new Date();
+  return [0, 1, 2].map(i => {
+    const d = new Date(auj.getFullYear(), auj.getMonth() + i, 1);
+    return { mois: d.getMonth() + 1, annee: d.getFullYear(), cle: cleMois(d.getFullYear(), d.getMonth() + 1), debut: d, courant: i === 0 };
+  });
+}
+function nomMoisCle(cle) {
+  const [a, m] = cle.split("-").map(Number);
+  return MOIS_NOMS[m - 1] + (a !== new Date().getFullYear() ? " " + a : "");
+}
+// Comparaison de mois "AAAA-MM" avec le mois courant : -1 passé, 0 courant, 1 futur
+function positionMois(cle) {
+  const c = cleMois(new Date().getFullYear(), moisCourant());
+  return cle < c ? -1 : cle === c ? 0 : 1;
+}
+
+function moisPourPlante(plante) { return new Set([...plante.moisSemis, ...plante.moisPlantation]); }
+function actionPourMois(plante, m) {
+  const semis = plante.moisSemis.includes(m), plant = plante.moisPlantation.includes(m);
+  if (semis && plant) return "semis ou plantation";
+  return semis ? "semis" : "plantation";
+}
+function estDernierMois(plante, m) {
+  const ms = moisPourPlante(plante);
+  return ms.has(m) && !ms.has(m === 12 ? 1 : m + 1);
+}
+function verbeAction(plante, m) {
+  const a = actionPourMois(plante, m);
+  return a === "semis" ? "Semer" : a === "plantation" ? "Planter" : "Semer ou planter";
+}
+
+function libelleCase(parcelle, x, y) {
+  return `${parcelle.nom}, case ${x + 1}${parcelle.hauteur > 1 ? "-" + (y + 1) : ""}`;
+}
+
+// Meilleur emplacement pour une plante : case libre sans mauvais voisin ni
+// rotation gênante, ou case déjà occupée par de bons compagnons (aromates, fleurs)
+function meilleureCase(plante, dateRef = aujourdhui()) {
+  const petite = plante.categorie === "aromate" || plante.categorie === "fleur";
+  let meilleur = null;
+  etat.parcelles.forEach(parcelle => {
+    for (let y = 0; y < parcelle.hauteur; y++) {
+      for (let x = 0; x < parcelle.largeur; x++) {
+        const cultures = culturesDe(parcelle, x + "-" + y);
+        if (cultures.length >= MAX_CULTURES_PAR_CASE) continue;
+        if (cultures.some(c => c.planteId === plante.id)) continue;
+        const v = voisinage(parcelle, x, y, plante.id);
+        if (v.ennemis.length) continue;
+        const libre = cultures.length === 0;
+        if (!libre && !petite && !v.amis.length) continue;
+        const rotation = verifierRotation(parcelle, x + "-" + y, plante.id, dateRef);
+        let score = (libre ? (petite ? 2 : 4) : (petite ? 1 : -1)) + v.amis.length * 3 - (rotation ? 4 : 0);
+        if (!libre && petite && v.amis.length) score += 3;
+        if (!meilleur || score > meilleur.score) {
+          meilleur = { parcelle, x, y, score, libre, amis: v.amis, rotation };
+        }
+      }
+    }
+  });
+  return meilleur;
+}
+
+// Emplacement conseillé pour chaque projet à faire, en tenant compte des autres
+// projets (deux projets ne sont pas proposés dans la même case s'ils s'entendent mal)
+function emplacementsDuPlan() {
+  const resultat = {};
+  const virtuelles = [];
+  try {
+    etat.projets.filter(pr => !pr.fait).sort((a, b) => a.mois.localeCompare(b.mois)).forEach(pr => {
+      const plante = planteParId(pr.planteId);
+      const e = meilleureCase(plante);
+      resultat[pr.id] = e;
+      if (e) {
+        const coord = e.x + "-" + e.y;
+        if (!Array.isArray(e.parcelle.cases[coord])) e.parcelle.cases[coord] = [];
+        const v = { id: "virtuelle-" + pr.id, planteId: plante.id, datePlantation: isoLocal(), notes: "" };
+        e.parcelle.cases[coord].push(v);
+        virtuelles.push([e.parcelle, coord, v]);
+      }
+    });
+  } finally {
+    virtuelles.forEach(([parcelle, coord, v]) => {
+      const reste = (parcelle.cases[coord] || []).filter(c => c !== v);
+      if (reste.length) parcelle.cases[coord] = reste; else delete parcelle.cases[coord];
+    });
+  }
+  return resultat;
+}
+
+function raisonsSuggestion(plante, emplacement) {
+  const raisons = [];
+  if (!emplacement) return ["Plus de place adaptée : libère une case ou une parcelle."];
+  if (emplacement.amis.length) raisons.push(`Bon voisin de ${listeFr(emplacement.amis.slice(0, 3))}`);
+  raisons.push(emplacement.libre ? `Case libre : ${libelleCase(emplacement.parcelle, emplacement.x, emplacement.y)}` : `Se glisse dans ${libelleCase(emplacement.parcelle, emplacement.x, emplacement.y)}`);
+  if (emplacement.rotation) raisons.push("Rotation à surveiller (même famille récemment)");
+  return raisons;
+}
+
+function suggestionsDuMois(moisInfo) {
+  const presentes = new Set(listerCultures().map(c => c.plante.id));
+  const prevues = new Set(etat.projets.filter(pr => !pr.fait).map(pr => pr.planteId));
+  const dateRef = moisInfo.courant ? aujourdhui() : moisInfo.debut;
+  return PLANTS_DB
+    .filter(p => moisPourPlante(p).has(moisInfo.mois))
+    .map(plante => {
+      const emplacement = meilleureCase(plante, dateRef);
+      const dernier = estDernierMois(plante, moisInfo.mois);
+      let score = (emplacement ? emplacement.score : -6) + (dernier ? 2 : 0) + (plante.moisRecolte.length ? 1 : 0)
+        + (plante.categorie === "legume" ? 3 : plante.categorie === "fruit" ? 2 : 0);
+      if (presentes.has(plante.id)) score -= 3;
+      if (prevues.has(plante.id)) score += 1;
+      return { plante, emplacement, dernier, score, dejaLa: presentes.has(plante.id) };
+    })
+    .sort((a, b) => b.score - a.score || a.plante.nom.localeCompare(b.plante.nom, "fr"));
+}
+
+function projetDe(planteId, cle) { return etat.projets.find(pr => pr.planteId === planteId && pr.mois === cle); }
+
+function statutProjet(pr) {
+  const plante = planteParId(pr.planteId);
+  const [a, m] = pr.mois.split("-").map(Number);
+  const pos = positionMois(pr.mois);
+  if (pr.fait) return { code: "fait", label: "✓ Lancé", classe: "fait" };
+  const mc = moisCourant();
+  const fenetreOuverte = moisPourPlante(plante).has(mc);
+  if (pos < 0) return fenetreOuverte
+    ? { code: "retard", label: "Prévu plus tôt : c'est encore possible", classe: "retard" }
+    : { code: "retard", label: "Fenêtre passée", classe: "retard" };
+  if (pos === 0) return estDernierMois(plante, mc)
+    ? { code: "dernier", label: "Dernier mois pour le faire", classe: "dernier" }
+    : { code: "maintenant", label: "À faire ce mois-ci", classe: "maintenant" };
+  return { code: "plus-tard", label: "En " + MOIS_NOMS[m - 1], classe: "plus-tard" };
+}
+
+function basculerProjet(planteId, cle) {
+  const plante = planteParId(planteId);
+  const existant = projetDe(planteId, cle);
+  if (existant) {
+    avecAnnulation(`${nomCourt(plante)} retiré du plan.`, () => { etat.projets = etat.projets.filter(pr => pr !== existant); });
+  } else {
+    avecAnnulation(`${nomCourt(plante)} ajouté au plan de ${nomMoisCle(cle)}.`, () => {
+      etat.projets.push({ id: creerId(), planteId, mois: cle, fait: false });
+    });
+  }
+}
+
+function placerProjet(pr) {
+  const plante = planteParId(pr.planteId);
+  const e = emplacementsDuPlan()[pr.id] || meilleureCase(plante);
+  if (!e) { toast("Plus de place adaptée : libère une case d'abord."); return; }
+  ouvrirEditeurCase(e.parcelle.id, e.x, e.y, { plante: plante.id });
+}
+
+function rendrePlanTroisMois(zone) {
+  const mois3 = troisProchainsMois();
+  const categories = [["toutes", "Tout"], ["legume", "🥕 Légumes"], ["fruit", "🍓 Fruits"], ["aromate", "🌿 Aromates"], ["fleur", "🌼 Fleurs"]];
+  const { libres } = compterCases();
+  const debut = MOIS_NOMS[mois3[0].mois - 1], fin = MOIS_NOMS[mois3[2].mois - 1];
+  const fenetre = new Set(mois3.map(mm => mm.cle));
+  const projets = etat.projets
+    .filter(pr => !pr.fait || fenetre.has(pr.mois))
+    .sort((a, b) => a.fait - b.fait || a.mois.localeCompare(b.mois));
+  const nbAFaire = projets.filter(pr => !pr.fait).length;
+
+  const emplacements = emplacementsDuPlan();
+  const ligneProjet = pr => {
+    const plante = planteParId(pr.planteId);
+    const st = statutProjet(pr);
+    const e = pr.fait ? null : emplacements[pr.id];
+    return `
+      <div class="projet projet-${st.classe}">
+        <div class="projet-tete">
+          <span class="projet-nom">${iconePlante(plante)} ${esc(plante.nom)}</span>
+          <span class="projet-statut st-${st.classe}">${esc(st.label)}</span>
+        </div>
+        ${pr.fait ? "" : `<div class="projet-detail">${e ? "📍 " + esc(libelleCase(e.parcelle, e.x, e.y)) + (e.amis.length ? " — bon voisin de " + esc(listeFr(e.amis.slice(0, 2))) : "") : "Plus de place adaptée pour l'instant"}</div>
+        <div class="projet-actions">
+          <button class="btn-petit" data-placer="${pr.id}"${e ? "" : " disabled"}>Planter maintenant</button>
+          <button class="btn-discret" data-fiche="${plante.id}">Fiche</button>
+          <button class="btn-discret" data-retirer="${pr.id}">Retirer</button>
+        </div>`}
+      </div>`;
+  };
+
+  const ligneSuggestion = (sg, mm) => {
+    const pr = projetDe(sg.plante.id, mm.cle);
+    const f = familleDe(sg.plante);
+    return `
+      <div class="suggestion" style="--famille:${f.color}">
+        <div class="sg-corps">
+          <div class="sg-titre">${iconePlante(sg.plante)} ${esc(sg.plante.nom)}
+            <span class="tag-famille" style="background:${f.color}">${esc(majuscule(actionPourMois(sg.plante, mm.mois)))}</span>
+            ${sg.dernier ? `<span class="tag-urgent">Dernière occasion</span>` : ""}
+            ${sg.dejaLa ? `<span class="tag-info">Déjà chez toi</span>` : ""}</div>
+          <div class="sg-raisons">${raisonsSuggestion(sg.plante, sg.emplacement).map(esc).join(" · ")}</div>
+          ${sg.plante.conseilCourt ? `<div class="sg-conseil">💡 ${esc(sg.plante.conseilCourt)}</div>` : ""}
+        </div>
+        <div class="sg-actions">
+          <button class="btn-petit${pr ? " prevu" : ""}" data-prevoir="${sg.plante.id}|${mm.cle}" aria-pressed="${!!pr}">${pr ? (pr.fait ? "✓ Lancé" : "✓ Prévu") : "＋ Je le prévois"}</button>
+          <button class="lien-bouton" data-fiche="${sg.plante.id}">Fiche</button>
+        </div>
+      </div>`;
+  };
+
+  const cartesMois = mois3.map(mm => {
+    const tout = suggestionsDuMois(mm).filter(sg => ui.filtrePlan === "toutes" || sg.plante.categorie === ui.filtrePlan);
+    const visibles = tout.slice(0, 5), reste = tout.slice(5);
+    return `
+      <section class="carte">
+        <div class="carte-titre"><h2>${mm.courant ? "Ce mois-ci" : majuscule(MOIS_NOMS[mm.mois - 1])}${mm.courant ? ` <small>(${MOIS_NOMS[mm.mois - 1]})</small>` : ""}</h2>
+          <span class="carte-sous-titre">${tout.length} idée${tout.length > 1 ? "s" : ""}</span></div>
+        ${tout.length ? visibles.map(sg => ligneSuggestion(sg, mm)).join("") : `<p class="vide">Rien de particulier à lancer dans cette catégorie ce mois-là.</p>`}
+        ${reste.length ? `<details class="coach-plus"><summary>${reste.length} autre${reste.length > 1 ? "s" : ""} idée${reste.length > 1 ? "s" : ""}</summary>${reste.map(sg => ligneSuggestion(sg, mm)).join("")}</details>` : ""}
+      </section>`;
+  }).join("");
+
+  // Récoltes attendues dans les 3 mois
+  const fin3 = new Date(mois3[2].debut.getFullYear(), mois3[2].debut.getMonth() + 1, 0);
+  const recoltes = regrouperCultures(listerCultures()).map(g => {
+    if (g.fenetre) {
+      if (g.fenetre.fin < aujourdhui() && g.statut !== "retard") return null;
+      if (g.fenetre.debut > fin3) return null;
+      return { g, quand: g.statut === "retard" ? "à vérifier maintenant" : g.fenetre.debut <= aujourdhui() ? "récolte en cours" : "vers le " + formatDate(g.fenetre.debut), tri: g.fenetre.debut };
+    }
+    const ms = g.plante.moisRecolte || [];
+    if (!mois3.some(mm => ms.includes(mm.mois))) return null;
+    return { g, quand: "cueillette possible", tri: aujourdhui() };
+  }).filter(Boolean).sort((a, b) => a.tri - b.tri);
+
+  const conseils = mois3.map(mm => {
+    const info = MONTHLY_ADVICE.find(a => a.mois === mm.mois);
+    return info ? `<div class="trimestre-mois"><h3 class="sous-titre-section">${esc(info.titre)}</h3><ul>${info.court.map(t => `<li>${esc(t)}</li>`).join("")}</ul></div>` : "";
+  }).join("");
+
+  zone.innerHTML = `
+    <section class="carte carte-coach3">
+      <div class="carte-titre"><h2>Coach du trimestre</h2><span class="carte-sous-titre">${debut} → ${fin}</span></div>
+      <p class="intro-coach">${libres > 0 ? `Tu as <strong>${libres} m² libres</strong>. ` : "Ton potager est plein pour l'instant. "}Choisis ce que tu veux cultiver ces trois prochains mois : je te propose les meilleures idées de saison, avec l'endroit le plus adapté dans ton potager, et je te rappellerai chaque étape sur l'accueil.</p>
+      <div class="chips">${categories.map(([id, label]) => `<button class="chip${ui.filtrePlan === id ? " actif" : ""}" data-catplan="${id}">${label}</button>`).join("")}</div>
+    </section>
+    ${projets.length ? `<section class="carte">
+      <div class="carte-titre"><h2>Mon plan</h2><span class="carte-sous-titre">${nbAFaire} à faire</span></div>
+      ${projets.map(ligneProjet).join("")}
+    </section>` : ""}
+    ${cartesMois}
+    <section class="carte">
+      <div class="carte-titre"><h2>Récoltes attendues</h2></div>
+      ${recoltes.length ? recoltes.map(r => `<div class="recolte-prevue"><span>${iconePlante(r.g.plante)} <strong>${esc(r.g.plante.nom)}</strong> <small>${esc(r.g.parcelle.nom)}</small></span><span class="rp-quand">${esc(r.quand)}</span></div>`).join("")
+        : `<p class="vide">Aucune récolte prévue d'ici ${fin}. Plante dès maintenant pour en avoir ensuite !</p>`}
+    </section>
+    <section class="carte">
+      <div class="carte-titre"><h2>Les gestes du trimestre</h2></div>
+      ${conseils}
+    </section>`;
+
+  zone.querySelectorAll("[data-catplan]").forEach(b => b.addEventListener("click", () => { ui.filtrePlan = b.dataset.catplan; rendreSaisons(); }));
+  zone.querySelectorAll("[data-prevoir]").forEach(b => b.addEventListener("click", () => { const [id, cle] = b.dataset.prevoir.split("|"); basculerProjet(id, cle); }));
+  zone.querySelectorAll("[data-placer]").forEach(b => b.addEventListener("click", () => { const pr = etat.projets.find(k => k.id === b.dataset.placer); if (pr) placerProjet(pr); }));
+  zone.querySelectorAll("[data-retirer]").forEach(b => b.addEventListener("click", () => {
+    const pr = etat.projets.find(k => k.id === b.dataset.retirer);
+    if (pr) avecAnnulation("Retiré du plan.", () => { etat.projets = etat.projets.filter(k => k !== pr); });
+  }));
+  brancherFiches(zone);
+}
+
+// Rappels du coach liés au plan des 3 mois
+function conseilsDuPlan() {
+  const conseils = [];
+  const mc = moisCourant();
+  const aFaire = etat.projets.filter(pr => !pr.fait);
+  const emplacements = emplacementsDuPlan();
+  const nomEmpl = e => e ? ` Emplacement conseillé : ${libelleCase(e.parcelle, e.x, e.y)}.` : "";
+  aFaire.filter(pr => positionMois(pr.mois) <= 0).forEach(pr => {
+    const plante = planteParId(pr.planteId);
+    const ouverte = moisPourPlante(plante).has(mc);
+    const e = emplacements[pr.id];
+    const verbe = verbeAction(plante, mc).toLowerCase();
+    if (ouverte) {
+      const dernier = estDernierMois(plante, mc);
+      conseils.push({
+        type: dernier ? "alerte" : "conseil", icone: dernier ? "⏳" : "🌱",
+        titre: `${dernier ? "Dernier mois pour " + verbe : "À " + verbe + " ce mois-ci"} : ${plante.nom}`,
+        texte: `C'est dans ton plan.${nomEmpl(e)}${plante.conseilCourt ? " " + plante.conseilCourt : ""}`,
+        action: e ? { label: "Planter", parcelle: e.parcelle.id, coord: e.x + "-" + e.y, plante: plante.id } : { label: "Voir le plan", vue: "saisons", sousVue: "plan" }
+      });
+    } else {
+      conseils.push({
+        type: "conseil", icone: "📅",
+        titre: `${plante.nom} : la fenêtre est passée`,
+        texte: `Prévu en ${nomMoisCle(pr.mois)} mais pas lancé. Prochaine fenêtre : ${listeFr([...moisPourPlante(plante)].sort((a, b) => a - b).map(i => MOIS_NOMS[i - 1]))}. Retire-le du plan ou garde-le pour la prochaine saison.`,
+        action: { label: "Voir le plan", vue: "saisons", sousVue: "plan" }
+      });
+    }
+  });
+  const prochain = troisProchainsMois()[1];
+  const mois1 = aFaire.filter(pr => pr.mois === prochain.cle);
+  if (mois1.length) {
+    conseils.push({
+      type: "conseil", icone: "🗓️",
+      titre: `Le mois prochain : ${listeFr(mois1.slice(0, 4).map(pr => nomCourt(planteParId(pr.planteId))))}`,
+      texte: "Prépare le terrain (désherbage, compost) et commande tes graines ou plants dès maintenant.",
+      action: { label: "Voir le plan", vue: "saisons", sousVue: "plan" }
+    });
+  }
+  if (!aFaire.length && !etat.projets.some(pr => pr.fait)) {
+    conseils.push({
+      type: "conseil", icone: "🧭",
+      titre: "Prépare ton trimestre",
+      texte: "Choisis ce que tu veux cultiver d'ici trois mois : je te propose des idées de saison, l'endroit idéal, et je te rappelle chaque étape.",
+      action: { label: "Ouvrir le coach", vue: "saisons", sousVue: "plan" }
+    });
+  }
   return conseils;
 }
 
@@ -709,7 +1116,8 @@ function dessinerPlan(conteneur, { edition = false } = {}) {
         const rect = document.createElementNS(NS, "rect");
         Object.entries({ x: gx + x * U + 4, y: gy + y * U + 4, width: U - 8, height: U - 8, rx: 8 })
           .forEach(([k, v]) => rect.setAttribute(k, v));
-        rect.setAttribute("class", "plan-case" + (plantes.length ? " occupee" : ""));
+        const prot = protectionDe(parcelle, coord);
+        rect.setAttribute("class", "plan-case" + (plantes.length ? " occupee" : "") + (prot ? " protegee prot-" + prot.type : ""));
         if (plantes.length) rect.style.fill = remplissage(plantes.map(pl => familleDe(pl).color));
         if (!edition) {
           rect.setAttribute("tabindex", "0");
@@ -720,6 +1128,15 @@ function dessinerPlan(conteneur, { edition = false } = {}) {
           rect.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ouvrir(); } });
         }
         g.appendChild(rect);
+
+        if (prot) {
+          const badge = document.createElementNS(NS, "text");
+          badge.setAttribute("x", gx + x * U + 20);
+          badge.setAttribute("y", gy + (y + 1) * U - 16);
+          badge.setAttribute("class", "plan-protection");
+          badge.textContent = PROTECTIONS[prot.type].icone;
+          g.appendChild(badge);
+        }
 
         if (plantes.length) {
           const mise = DISPOSITION_ICONES[Math.min(plantes.length, 5)];
@@ -863,10 +1280,15 @@ function rendreCoach() {
     </details>` : "");
   zone.querySelectorAll("[data-coach]").forEach(b => b.addEventListener("click", () => {
     const a = conseils[+b.dataset.coach].action;
-    if (a.vue) allerA(a.vue);
+    if (a.proteger) {
+      const cibles = casesNuesSansProtection();
+      avecAnnulation(`${PROTECTIONS[a.proteger].label} noté sur ${cibles.length} case${cibles.length > 1 ? "s" : ""}.`, () => protegerCases(cibles, a.proteger));
+    }
+    else if (a.retirerProtections) avecAnnulation("Protections retirées.", () => retirerToutesProtections());
+    else if (a.vue) { if (a.sousVue) ui.vueSaisons = a.sousVue; allerA(a.vue); }
     else if (a.parcelle) {
       const [x, y] = a.coord.split("-").map(Number);
-      ouvrirEditeurCase(a.parcelle, x, y, { editId: a.cid });
+      ouvrirEditeurCase(a.parcelle, x, y, { editId: a.cid || null, plante: a.plante || null });
     }
   }));
 }
@@ -1024,19 +1446,22 @@ function rendrePlan() {
         const statut = statuts[p.id + "|" + coord];
         const pastille = STATUTS_A_RECOLTER.includes(statut) ? `<span class="case-pastille${statut === "retard" ? " retard" : ""}"></span>` : "";
         const lieu = `data-parcelle="${p.id}" data-x="${x}" data-y="${y}"`;
+        const prot = protectionDe(p, coord);
+        const badgeProt = prot ? `<span class="case-protection" title="${esc(PROTECTIONS[prot.type].label)}">${PROTECTIONS[prot.type].icone}</span>` : "";
+        const classeProt = prot ? " protegee prot-" + prot.type : "";
         if (!plantes.length) {
-          cases += `<button class="case" ${lieu} aria-label="Case vide ${x + 1}-${y + 1}"><span class="case-vide">+</span></button>`;
+          cases += `<button class="case${classeProt}" ${lieu} aria-label="Case vide ${x + 1}-${y + 1}${prot ? ", " + esc(PROTECTIONS[prot.type].label) : ""}"><span class="case-vide">+</span>${badgeProt}</button>`;
         } else if (plantes.length === 1) {
-          cases += `<button class="case occupee" ${lieu}
+          cases += `<button class="case occupee${classeProt}" ${lieu}
                style="--famille:${familleDe(plantes[0]).color}" title="${esc(plantes[0].nom)}, planté le ${esc(formatDate(cs[0].datePlantation))}">
-               ${pastille}
+               ${pastille}${badgeProt}
                <span class="case-icone">${iconePlante(plantes[0])}</span><span class="case-nom">${esc(nomCourt(plantes[0]))}</span>
              </button>`;
         } else {
-          cases += `<button class="case occupee multi" ${lieu}
+          cases += `<button class="case occupee multi${classeProt}" ${lieu}
                style="background:${fondDegrade(plantes.map(pl => familleDe(pl).color))}" title="${esc(plantes.map(pl => pl.nom).join(", "))}"
                aria-label="Case ${x + 1}-${y + 1} : ${esc(plantes.map(pl => pl.nom).join(", "))}">
-               ${pastille}
+               ${pastille}${badgeProt}
                <span class="case-icones">${plantes.slice(0, 5).map(pl => `<span>${iconePlante(pl)}</span>`).join("")}</span>
              </button>`;
         }
@@ -1054,6 +1479,8 @@ function rendrePlan() {
         </div>
         <div class="grille-carres" style="grid-template-columns:repeat(${p.largeur}, minmax(30px, 64px))">${cases}</div>
         ${familles.length ? `<div class="legende">${familles.map(f => `<span><span class="puce" style="background:${FAMILIES[f].color}"></span>${FAMILIES[f].label}</span>`).join("")}</div>` : ""}
+        ${(() => { const types = [...new Set(Object.keys(p.protections || {}).filter(c => dansLimites(p, c) && protectionDe(p, c)).map(c => p.protections[c].type))];
+          return types.length ? `<div class="legende">${types.map(t => `<span>${PROTECTIONS[t].icone} ${PROTECTIONS[t].label}</span>`).join("")}</div>` : ""; })()}
       </div>`;
   }).join("");
 
@@ -1065,7 +1492,7 @@ function rendrePlan() {
 
 function ajouterParcelle() {
   const posY = etat.parcelles.length ? Math.max(...etat.parcelles.map(p => p.posY + p.hauteur)) + 1 : 0;
-  const parcelle = { id: creerId(), nom: "Parcelle " + (etat.parcelles.length + 1), largeur: 3, hauteur: 1, posX: 0, posY, cases: {}, historique: [] };
+  const parcelle = { id: creerId(), nom: "Parcelle " + (etat.parcelles.length + 1), largeur: 3, hauteur: 1, posX: 0, posY, cases: {}, protections: {}, historique: [] };
   etat.parcelles.push(parcelle);
   sauvegarder();
   rendrePlan();
@@ -1083,12 +1510,31 @@ function ouvrirReglagesParcelle(id) {
       <div><label for="rp-l">Largeur (m)</label><input id="rp-l" type="number" min="1" max="20" step="1" value="${p.largeur}"></div>
       <div><label for="rp-h">Profondeur (m)</label><input id="rp-h" type="number" min="1" max="20" step="1" value="${p.hauteur}"></div>
     </div>
+    <h3 class="sous-titre-section">Protéger pour l'hiver</h3>
+    <p class="texte-doux petit">Note ici ce que tu poses sur les cases vides de cette parcelle. Pour une seule case, ouvre-la depuis le plan.</p>
+    <div class="chips">${Object.entries(PROTECTIONS).map(([id, pr]) => `<button class="chip" data-protegerp="${id}">${pr.icone} ${pr.label}</button>`).join("")}</div>
+    <button class="btn-discret" id="rp-retirer-prot">Retirer toutes les protections de la parcelle</button>
     <p class="texte-doux petit">Pour placer la parcelle sur le plan, utilise « Déplacer les parcelles » dans la vue d'ensemble.</p>
     <div class="actions-fenetre">
       <button class="btn" id="rp-ok">Enregistrer</button>
       <button class="btn-discret" id="rp-pivoter">Pivoter d'un quart de tour</button>
       <button class="btn-danger" id="rp-suppr">Supprimer</button>
     </div>`, fen => {
+    fen.querySelectorAll("[data-protegerp]").forEach(b => b.addEventListener("click", () => {
+      const type = b.dataset.protegerp;
+      const nues = [];
+      for (let yy = 0; yy < p.hauteur; yy++) for (let xx = 0; xx < p.largeur; xx++) {
+        const coord = xx + "-" + yy;
+        if (!culturesDe(p, coord).length && !protectionDe(p, coord)) nues.push({ parcelle: p, coord });
+      }
+      if (!nues.length) { toast("Toutes les cases libres de cette parcelle sont déjà protégées."); return; }
+      fermerFenetre();
+      avecAnnulation(`${PROTECTIONS[type].label} noté sur ${nues.length} case${nues.length > 1 ? "s" : ""}.`, () => protegerCases(nues, type));
+    }));
+    fen.querySelector("#rp-retirer-prot").addEventListener("click", () => {
+      fermerFenetre();
+      avecAnnulation("Protections retirées.", () => retirerToutesProtections([p]));
+    });
     fen.querySelector("#rp-ok").addEventListener("click", () => {
       const nom = fen.querySelector("#rp-nom").value.trim() || p.nom;
       const l = clamp(parseInt(fen.querySelector("#rp-l").value, 10) || 1, 1, 20);
@@ -1102,6 +1548,7 @@ function ouvrirReglagesParcelle(id) {
         ? `Parcelle réduite : ${horsLimites.length} culture(s) hors du cadre retirée(s).`
         : "Parcelle enregistrée.", () => {
         p.nom = nom; p.largeur = l; p.hauteur = h;
+        Object.keys(p.protections || {}).forEach(coord => { if (!dansLimites(p, coord)) delete p.protections[coord]; });
         horsLimites.forEach(coord => culturesDe(p, coord).forEach(c => terminerCulture(p, coord, c.id)));
       });
     });
@@ -1117,8 +1564,14 @@ function ouvrirReglagesParcelle(id) {
           const [x, y] = hh.coord.split("-").map(Number);
           hh.coord = (p.hauteur - 1 - y) + "-" + x;
         });
+        const nouvellesProt = {};
+        Object.entries(p.protections || {}).forEach(([coord, v]) => {
+          const [x, y] = coord.split("-").map(Number);
+          nouvellesProt[(p.hauteur - 1 - y) + "-" + x] = v;
+        });
         [p.largeur, p.hauteur] = [p.hauteur, p.largeur];
         p.cases = nouvellesCases;
+        p.protections = nouvellesProt;
       });
     });
     fen.querySelector("#rp-suppr").addEventListener("click", () => {
@@ -1135,7 +1588,7 @@ function ouvrirReglagesParcelle(id) {
    Éditeur d'une case (fenêtre)
    ============================================================ */
 
-function ouvrirEditeurCase(parcelleId, x, y, { editId = null, recolteId = null } = {}) {
+function ouvrirEditeurCase(parcelleId, x, y, { editId = null, recolteId = null, plante: plantePresel = null } = {}) {
   const parcelle = etat.parcelles.find(p => p.id === parcelleId);
   if (!parcelle) return;
   const coord = x + "-" + y;
@@ -1149,7 +1602,7 @@ function ouvrirEditeurCase(parcelleId, x, y, { editId = null, recolteId = null }
   const plantesTriees = PLANTS_DB.slice().sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
   const deSaison = plantesTriees.filter(p => p.moisSemis.includes(m) || p.moisPlantation.includes(m));
   const autres = plantesTriees.filter(p => !deSaison.includes(p));
-  const option = p => `<option value="${p.id}"${edite && edite.planteId === p.id ? " selected" : ""}${dejaLa.has(p.id) ? " disabled" : ""}>${iconePlante(p)} ${esc(p.nom)}${dejaLa.has(p.id) ? " (déjà dans cette case)" : ""}</option>`;
+  const option = p => `<option value="${p.id}"${(edite && edite.planteId === p.id) || (!edite && plantePresel === p.id && !dejaLa.has(p.id)) ? " selected" : ""}${dejaLa.has(p.id) ? " disabled" : ""}>${iconePlante(p)} ${esc(p.nom)}${dejaLa.has(p.id) ? " (déjà dans cette case)" : ""}</option>`;
   const autresVides = [];
   for (let yy = 0; yy < parcelle.hauteur; yy++)
     for (let xx = 0; xx < parcelle.largeur; xx++) {
@@ -1185,6 +1638,14 @@ function ouvrirEditeurCase(parcelleId, x, y, { editId = null, recolteId = null }
     ${cultures.length
       ? `<div class="cultures-case">${lignes}</div>`
       : `<p class="texte-doux">Case vide. Tu peux y mettre plusieurs cultures, par exemple des plantes qui s'entendent bien comme la tomate et le basilic.</p>`}
+    ${recolte ? "" : (() => {
+      const cur = protectionDe(parcelle, coord);
+      return `<div class="ec-protection">
+        <h3 class="sous-titre-section">Protection de la case</h3>
+        <div class="chips">${Object.entries(PROTECTIONS).map(([id, pr]) => `<button class="chip${cur && cur.type === id ? " actif" : ""}" data-protection="${id}" aria-pressed="${!!(cur && cur.type === id)}">${pr.icone} ${pr.label}</button>`).join("")}</div>
+        <p class="texte-doux petit">${cur ? `${esc(PROTECTIONS[cur.type].label)}${cur.date ? " posé le " + esc(formatDate(cur.date)) : ""}. ${esc(PROTECTIONS[cur.type].conseil)} Touche à nouveau pour le retirer.`
+          : "Paillage, voile d'hivernage ou bâche : note-le ici pour t'en souvenir. Je te rappellerai de l'enlever au printemps."}</p>
+      </div>`; })()}
     ${recolte ? `
     <div id="ec-zone-recolte">
       <h3 class="sous-titre-section">Récolte : ${esc(nomRecolte)}</h3>
@@ -1232,6 +1693,12 @@ function ouvrirEditeurCase(parcelleId, x, y, { editId = null, recolteId = null }
     <div class="actions-fenetre"><button class="btn-discret" id="ec-fermer">Fermer</button></div>`, fen => {
     const rouvrir = options => ouvrirEditeurCase(parcelleId, x, y, options);
     fen.querySelector("#ec-fermer").addEventListener("click", fermerFenetre);
+    fen.querySelectorAll("[data-protection]").forEach(b => b.addEventListener("click", () => {
+      const type = b.dataset.protection;
+      const cur = protectionDe(parcelle, coord);
+      if (cur && cur.type === type) avecAnnulation("Protection retirée.", () => definirProtection(parcelle, coord, null));
+      else avecAnnulation(`${PROTECTIONS[type].label} noté sur la case.`, () => definirProtection(parcelle, coord, type));
+    }));
 
     // Actions sur chaque culture de la case
     fen.querySelectorAll("[data-act]").forEach(b => b.addEventListener("click", () => {
@@ -1423,12 +1890,23 @@ function rendreCultures() {
 function rendreSaisons() {
   const vue = document.getElementById("vue-saisons");
   const categories = [["toutes", "Tout"], ["legume", "🥕 Légumes"], ["fruit", "🍓 Fruits"], ["aromate", "🌿 Aromates"], ["fleur", "🌼 Fleurs"]];
+  const onglets = `
+      <div class="onglets-internes" role="tablist">
+        <button role="tab" aria-selected="${ui.vueSaisons === "plan"}" data-vs="plan">Mon plan 3 mois</button>
+        <button role="tab" aria-selected="${ui.vueSaisons === "mois"}" data-vs="mois">Mois par mois</button>
+        <button role="tab" aria-selected="${ui.vueSaisons === "calendrier"}" data-vs="calendrier">Calendrier</button>
+      </div>`;
+  const brancherOnglets = () => vue.querySelectorAll("[data-vs]").forEach(b => b.addEventListener("click", () => { ui.vueSaisons = b.dataset.vs; rendreSaisons(); }));
+
+  if (ui.vueSaisons === "plan") {
+    vue.innerHTML = `<section class="carte carte-onglets">${onglets}</section><div id="plan3-contenu"></div>`;
+    brancherOnglets();
+    rendrePlanTroisMois(vue.querySelector("#plan3-contenu"));
+    return;
+  }
   vue.innerHTML = `
     <section class="carte">
-      <div class="onglets-internes" role="tablist">
-        <button role="tab" aria-selected="${ui.vueSaisons === "mois"}" data-vs="mois">Mois par mois</button>
-        <button role="tab" aria-selected="${ui.vueSaisons === "calendrier"}" data-vs="calendrier">Calendrier de l'année</button>
-      </div>
+      ${onglets}
       <div class="ligne-champs deux">
         <div><label for="rs-recherche">Rechercher une plante</label>
           <input type="search" id="rs-recherche" placeholder="ex. tomate" value="${esc(ui.rechercheSaisons)}"></div>
@@ -1440,7 +1918,7 @@ function rendreSaisons() {
     </section>
     <div id="saisons-contenu"></div>`;
 
-  vue.querySelectorAll("[data-vs]").forEach(b => b.addEventListener("click", () => { ui.vueSaisons = b.dataset.vs; rendreSaisons(); }));
+  brancherOnglets();
   vue.querySelectorAll("[data-cat]").forEach(b => b.addEventListener("click", () => { ui.filtreCategorie = b.dataset.cat; rendreSaisons(); }));
   const mois = vue.querySelector("#rs-mois");
   if (mois) mois.addEventListener("change", () => { ui.moisSaisons = +mois.value; rendreContenuSaisons(); });
@@ -1630,12 +2108,43 @@ function rendreReglages() {
         : `<p class="texte-doux">Dans le menu du navigateur, choisis « Ajouter à l'écran d'accueil » ou « Installer l'application ».</p>`}
     </section>
 
+    <section class="carte" id="rg-version">
+      <div class="carte-titre"><h2>Version de l'appli</h2></div>
+      <p>Version installée : <strong>${VERSION_APP}</strong> <span class="texte-doux petit">(${esc(formatDate(DATE_VERSION_APP))})</span></p>
+      <p class="texte-doux petit" id="rg-cache">Cache hors ligne : vérification…</p>
+      <p id="rg-version-etat" class="petit" aria-live="polite">${
+        ui.verifEnCours ? "Vérification en cours…"
+        : ui.versionErreur ? "Impossible de vérifier (pas de réseau ?). Réessaie quand tu es connecté."
+        : majDisponible() ? `⚠️ La version <strong>${esc(ui.versionDistante.version)}</strong>${ui.versionDistante.date ? " du " + esc(formatDate(ui.versionDistante.date)) : ""} est disponible.`
+        : ui.versionDistante ? `✓ Tu as la dernière version (vérifié à ${ui.versionDistante.verifieLe.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}).`
+        : "Pas encore vérifié."}</p>
+      ${majDisponible() && ui.versionDistante.nouveautes.length ? `<ul class="petit">${ui.versionDistante.nouveautes.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
+      <div class="actions-fenetre">
+        ${majDisponible() ? `<button class="btn" id="rg-maj">Mettre à jour maintenant</button>` : ""}
+        <button class="btn-discret" id="rg-verifier"${ui.verifEnCours ? " disabled" : ""}>Vérifier les mises à jour</button>
+      </div>
+    </section>
+
     <section class="carte">
       <div class="carte-titre"><h2>Repartir de zéro</h2></div>
       <p class="texte-doux petit">Efface toutes les parcelles, cultures et le journal de cet appareil.</p>
       <button class="btn-danger" id="rg-effacer">Tout effacer</button>
     </section>`;
 
+  vue.querySelector("#rg-verifier").addEventListener("click", async () => {
+    ui.verifEnCours = true; rendreReglages();
+    await verifierVersion();
+    actualiserApresVerification();
+  });
+  const btnMaj = vue.querySelector("#rg-maj");
+  if (btnMaj) btnMaj.addEventListener("click", () => { btnMaj.disabled = true; btnMaj.textContent = "Mise à jour…"; mettreAJour(); });
+  if (window.caches) {
+    caches.keys().then(noms => {
+      const c = noms.filter(n => n.startsWith("potager-breton-"));
+      const zone = vue.querySelector("#rg-cache");
+      if (zone) zone.textContent = c.length ? "Cache hors ligne : " + c.map(n => n.replace("potager-breton-", "")).join(", ") : "Cache hors ligne : aucun (l'appli n'est pas encore installée).";
+    }).catch(() => {});
+  }
   const persist = vue.querySelector("#rg-persist");
   if (navigator.storage && navigator.storage.persisted) {
     navigator.storage.persisted().then(ok => { if (ok) persist.textContent = " Stockage protégé contre l'effacement automatique."; });
@@ -1780,6 +2289,48 @@ function toast(message, { annuler } = {}) {
 }
 
 /* ============================================================
+   Version de l'appli : vérification et mise à jour
+   ============================================================ */
+
+const FICHIERS_APPLI = ["./", "index.html", "css/style.css", "js/app.js", "js/plants-data.js", "manifest.json", "sw.js"];
+
+async function verifierVersion() {
+  ui.verifEnCours = true;
+  try {
+    const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json();
+    ui.versionDistante = { version: String(j.version), date: j.date || null, nouveautes: Array.isArray(j.nouveautes) ? j.nouveautes : [], verifieLe: new Date() };
+    ui.versionErreur = false;
+  } catch (e) {
+    ui.versionErreur = true;
+  }
+  ui.verifEnCours = false;
+}
+function majDisponible() {
+  return !!ui.versionDistante && Number(ui.versionDistante.version) > Number(VERSION_APP);
+}
+// Vide les caches de l'appli (jamais les données du potager) et recharge
+async function mettreAJour() {
+  try { await Promise.all(FICHIERS_APPLI.map(f => fetch(f, { cache: "reload" }).catch(() => null))); } catch (e) {}
+  try {
+    const regs = navigator.serviceWorker ? await navigator.serviceWorker.getRegistrations() : [];
+    await Promise.all(regs.map(r => r.unregister()));
+  } catch (e) {}
+  try {
+    const noms = window.caches ? await caches.keys() : [];
+    await Promise.all(noms.filter(n => n.startsWith("potager-breton-")).map(n => caches.delete(n)));
+  } catch (e) {}
+  location.reload();
+}
+function actualiserApresVerification() {
+  if (ui.vue === "accueil") rendreCoach();
+  else if (ui.vue === "reglages") rendreReglages();
+  const pied = document.getElementById("version-pied");
+  if (pied) pied.textContent = "Version " + VERSION_APP + (majDisponible() ? " · mise à jour disponible" : "");
+}
+
+/* ============================================================
    Démarrage
    ============================================================ */
 
@@ -1808,4 +2359,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   sauvegarder();
   rendre();
+  actualiserApresVerification();
+  // Vérification discrète de la version au démarrage (sans réseau : on ne dit rien)
+  if (navigator.onLine !== false) verifierVersion().then(actualiserApresVerification);
 });

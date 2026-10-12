@@ -33,13 +33,19 @@ héberger gratuitement sur **GitHub Pages**.
   case, te rappelle sur l'accueil quand c'est le moment (ou le dernier
   mois pour le faire), et marque le projet « lancé » dès que tu plantes.
   Tu y vois aussi les récoltes attendues et les gestes du trimestre.
+- **Paillage et hivernage** : sur chaque case, note un paillage, un voile
+  d'hivernage ou une bâche (icône sur le plan). Le coach te rappelle de
+  protéger les cases nues dès octobre, tient compte des voiles dans les
+  alertes de gel, et te dit de les retirer au printemps. Tu peux aussi
+  protéger toutes les cases libres d'une parcelle d'un coup.
 - **Cultures** : chaque culture avec sa barre de progression et sa fenêtre
   de récolte estimée (les cultures qui passent l'hiver sont gérées).
 - **Saisons** : quoi semer ou récolter mois par mois, calendrier annuel de
   toutes les plantes, recherche, fiches détaillées (56 plantes, dont 15 aromates et 12 fleurs).
 - **Journal** : notes, semis, récoltes et problèmes, bilan des récoltes de
   l'année, conseils mois par mois.
-- **Réglages** : commune pour la météo, export / import, installation.
+- **Réglages** : commune pour la météo, export / import, installation, et
+  **version de l'appli** avec vérification des mises à jour.
 - **Annuler** : chaque suppression ou modification peut être annulée pendant
   quelques secondes.
 - **Hors ligne et installable** (PWA) : sur téléphone, menu du navigateur →
@@ -51,7 +57,7 @@ commune choisie est envoyée.
 ## Déployer sur GitHub Pages
 
 1. Crée un nouveau dépôt GitHub et mets-y le contenu de ce dossier
-   (`index.html`, `css/`, `js/`, `icons/`, `manifest.json`, `sw.js`, ce
+   (`index.html`, `css/`, `js/`, `icon-192.png`, `icon-512.png`, `manifest.json`, `sw.js`, ce
    fichier `README.md`) **en conservant l'arborescence** : les fichiers
    `style.css` et `app.js` doivent rester dans leurs sous-dossiers
    `css/` et `js/`, pas à la racine.
@@ -88,6 +94,19 @@ python3 -m http.server 8000
   `css/style.css` ou `js/app.js`, incrémente `CACHE_VERSION` en haut de
   `sw.js` pour forcer les appareils déjà installés à récupérer la nouvelle
   version.
+
+## Publier une nouvelle version
+
+À chaque livraison, change le numéro à **trois endroits** pour que la
+vérification de version fonctionne :
+
+1. `VERSION_APP` et `DATE_VERSION_APP` en haut de `js/app.js` ;
+2. `version` et `date` dans `version.json` (avec la liste des nouveautés) ;
+3. `CACHE_VERSION` dans `sw.js` (`"v7"` pour la version 7).
+
+Dans Réglages → Version de l'appli, « Vérifier les mises à jour » compare la
+version installée à `version.json` en ligne ; « Mettre à jour maintenant »
+vide le cache de l'appli (jamais tes données) et recharge.
 
 ## Idées d'évolution possibles
 
