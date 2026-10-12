@@ -76,7 +76,7 @@ const PLANTS_DB = [
     conseilCourt: "Ne sème pas trop tôt : il craint le froid et l'humidité stagnante.",
     conseilDetail: "Les fabacées enrichissent le sol en azote : plante-les avant une culture gourmande (tomate, courgette) l'année suivante au même endroit." },
   { id: "petit-pois", nom: "Petit pois", categorie: "legume", famille: "fabacees",
-    moisSemis: [2,3,10], moisPlantation: [], moisRecolte: [5,6,7,12,1],
+    moisSemis: [2,3,10,11], moisPlantation: [], moisRecolte: [4,5,6,7],
     dureeJoursMin: 70, dureeJoursMax: 90, exposition: "plein soleil",
     espacementCm: 8,
     conseilCourt: "Un grillage ou des rames lui permettent de grimper et de mieux produire.",
@@ -117,7 +117,7 @@ const PLANTS_DB = [
     espacementCm: 10,
     conseilCourt: "Plante une gousse pointe vers le haut, à 2-3 cm de profondeur.",
     conseilDetail: null },
-  { id: "epinard-hiver", nom: "Mâche", categorie: "legume", famille: "autre",
+  { id: "epinard-hiver" /* id historique conservé */, nom: "Mâche", categorie: "legume", famille: "autre",
     moisSemis: [8,9,10], moisPlantation: [], moisRecolte: [10,11,12,1,2],
     dureeJoursMin: 60, dureeJoursMax: 90, exposition: "mi-ombre",
     espacementCm: 8,
@@ -133,12 +133,55 @@ const PLANTS_DB = [
     moisSemis: [4,5], moisPlantation: [5,6], moisRecolte: [7,8,9],
     dureeJoursMin: 60, dureeJoursMax: 80, exposition: "plein soleil, abrité du vent",
     espacementCm: 60,
-    conseilCourt: null, conseilDetail: null },
+    conseilCourt: "Fais-le grimper sur un treillage : fruits plus propres et moins de maladies.",
+    conseilDetail: null },
+  { id: "courge", nom: "Courge / Potimarron", categorie: "legume", famille: "cucurbitacees",
+    moisSemis: [4,5], moisPlantation: [5,6], moisRecolte: [9,10],
+    dureeJoursMin: 110, dureeJoursMax: 140, exposition: "plein soleil",
+    espacementCm: 120,
+    conseilCourt: "Récolte avant les premières gelées, quand le pédoncule devient liégeux.",
+    conseilDetail: "Très gourmande : plante-la sur un tas de compost ou une planche bien fumée. Laisse les fruits sécher 2-3 semaines au soleil (ou à l'abri de la pluie bretonne !) avant de les stocker au frais et au sec." },
+  { id: "artichaut", nom: "Artichaut", categorie: "legume", famille: "asteracees",
+    moisSemis: [], moisPlantation: [4,5], moisRecolte: [6,7,8,9],
+    dureeJoursMin: 0, dureeJoursMax: 0, exposition: "plein soleil",
+    espacementCm: 100,
+    conseilCourt: "Le légume emblème de la Bretagne nord : il adore le climat doux et humide.",
+    conseilDetail: "Vivace qui produit 4-5 ans. Avant l'hiver, butte le pied et couvre-le de paille ou de fougères : les hivers bretons sont doux mais un sol détrempé et froid peut faire pourrir la souche." },
+  { id: "chou-fleur", nom: "Chou-fleur", categorie: "legume", famille: "brassicacees",
+    moisSemis: [4,5,6], moisPlantation: [6,7], moisRecolte: [10,11,12,1,2,3],
+    dureeJoursMin: 120, dureeJoursMax: 180, exposition: "plein soleil",
+    espacementCm: 60,
+    conseilCourt: "Replie quelques feuilles sur la pomme pour la garder bien blanche.",
+    conseilDetail: "La Bretagne est la première région française du chou-fleur grâce à ses hivers doux : les variétés d'hiver plantées en été se récoltent d'octobre à mars." },
+  { id: "feve", nom: "Fève", categorie: "legume", famille: "fabacees",
+    moisSemis: [2,3,10,11], moisPlantation: [], moisRecolte: [5,6,7],
+    dureeJoursMin: 90, dureeJoursMax: 120, exposition: "plein soleil",
+    espacementCm: 15,
+    conseilCourt: "Pince l'extrémité des tiges à la floraison pour limiter les pucerons noirs.",
+    conseilDetail: "Un semis d'automne passe bien l'hiver en Bretagne et donne une récolte précoce. Comme toutes les fabacées, elle enrichit le sol en azote pour la culture suivante." },
+  { id: "navet", nom: "Navet", categorie: "legume", famille: "brassicacees",
+    moisSemis: [3,4,7,8,9], moisPlantation: [], moisRecolte: [5,6,9,10,11,12],
+    dureeJoursMin: 50, dureeJoursMax: 70, exposition: "soleil à mi-ombre",
+    espacementCm: 10,
+    conseilCourt: "Récolte-le jeune et tendre, avant qu'il ne devienne fibreux.",
+    conseilDetail: null },
+  { id: "echalote", nom: "Échalote", categorie: "legume", famille: "liliacees",
+    moisSemis: [], moisPlantation: [10,11,2,3], moisRecolte: [6,7],
+    dureeJoursMin: 150, dureeJoursMax: 210, exposition: "plein soleil",
+    espacementCm: 15,
+    conseilCourt: "Plante les bulbes à fleur de terre, pointe visible.",
+    conseilDetail: null },
+  { id: "engrais-vert", nom: "Engrais vert (phacélie, moutarde)", categorie: "legume", famille: "autre",
+    moisSemis: [3,4,8,9,10], moisPlantation: [], moisRecolte: [],
+    dureeJoursMin: 0, dureeJoursMax: 0, exposition: "tout",
+    espacementCm: 0,
+    conseilCourt: "Couvre une planche vide : protège le sol des pluies d'hiver et le nourrit.",
+    conseilDetail: "Sème à la volée sur les planches libérées en fin d'été ou à l'automne. Fauche avant la montée en graines et laisse sur place ou enfouis légèrement : en Bretagne où les pluies d'hiver lessivent les sols nus, c'est l'un des gestes les plus utiles du potager." },
 
   // --- FRUITS / PETITS FRUITS ---
   { id: "fraise", nom: "Fraisier", categorie: "fruit", famille: "rosacees",
     moisSemis: [], moisPlantation: [3,4,9,10], moisRecolte: [5,6,7],
-    dureeJoursMin: 60, dureeJoursMax: 90, exposition: "plein soleil",
+    dureeJoursMin: 0, dureeJoursMax: 0, exposition: "plein soleil",
     espacementCm: 30,
     conseilCourt: "Paille sous les fruits pour les garder propres et secs.",
     conseilDetail: "La Bretagne, plutôt humide, favorise la pourriture grise (botrytis) sur les fraises : bon paillage, arrosage au pied et bonne circulation d'air entre les pieds sont essentiels." },
@@ -289,3 +332,66 @@ const GENERAL_TIPS = [
     detail: "Beaucoup de sols bretons (granit, schiste) sont naturellement acides, ce qui convient bien aux fraisiers, myrtilles et pommes de terre, mais moins à d'autres légumes. Un test de pH simple et des apports de compost ou, si besoin, un peu de chaux, permettent d'ajuster." },
   { titre: "Arroser intelligemment", court: "Arrose rarement mais abondamment, plutôt que souvent et peu.", detail: null }
 ];
+
+/* ============================================================
+   Compagnonnage : paires de plantes qui s'entraident (AMIS) ou
+   se gênent (ENNEMIS) quand elles sont voisines. Les paires sont
+   symétriques. Repères issus du jardinage traditionnel : ce sont
+   des tendances, pas des lois absolues.
+   ============================================================ */
+const COMPANION_PAIRS = {
+  amis: [
+    ["tomate","basilic"], ["tomate","carotte"], ["tomate","persil"], ["tomate","oeillet-inde"],
+    ["tomate","capucine"], ["tomate","ciboulette"], ["tomate","salade"], ["tomate","souci"],
+    ["carotte","poireau"], ["carotte","oignon"], ["carotte","ciboulette"], ["carotte","salade"],
+    ["carotte","radis"], ["carotte","petit-pois"], ["carotte","echalote"], ["carotte","ail"],
+    ["poireau","fraise"], ["poireau","salade"], ["poireau","tomate"],
+    ["oignon","betterave"], ["oignon","fraise"], ["oignon","salade"],
+    ["ail","fraise"], ["ail","betterave"],
+    ["haricot-vert","pomme-de-terre"], ["haricot-vert","courgette"], ["haricot-vert","chou"],
+    ["haricot-vert","salade"], ["haricot-vert","radis"], ["haricot-vert","betterave"],
+    ["haricot-vert","concombre"], ["haricot-vert","courge"],
+    ["petit-pois","radis"], ["petit-pois","salade"], ["petit-pois","navet"], ["petit-pois","concombre"],
+    ["feve","pomme-de-terre"], ["feve","salade"],
+    ["courgette","capucine"], ["courgette","souci"], ["courgette","oeillet-inde"],
+    ["courge","capucine"], ["courge","tournesol"],
+    ["chou","salade"], ["chou","betterave"], ["chou","thym"], ["chou","romarin"], ["chou","capucine"],
+    ["chou","souci"], ["chou-fleur","salade"], ["chou-fleur","thym"],
+    ["salade","radis"], ["salade","fraise"],
+    ["epinard","fraise"], ["epinard","radis"], ["epinard","chou"],
+    ["basilic","poivron"], ["poivron","carotte"], ["poivron","oignon"],
+    ["pomme-de-terre","capucine"], ["pomme-de-terre","oeillet-inde"],
+    ["fraise","thym"]
+  ],
+  ennemis: [
+    ["tomate","pomme-de-terre"], ["tomate","chou"], ["tomate","chou-fleur"],
+    ["haricot-vert","oignon"], ["haricot-vert","ail"], ["haricot-vert","poireau"],
+    ["haricot-vert","ciboulette"], ["haricot-vert","echalote"],
+    ["petit-pois","oignon"], ["petit-pois","ail"], ["petit-pois","poireau"],
+    ["petit-pois","ciboulette"], ["petit-pois","echalote"],
+    ["feve","oignon"], ["feve","ail"],
+    ["pomme-de-terre","courgette"], ["pomme-de-terre","concombre"], ["pomme-de-terre","courge"],
+    ["chou","fraise"], ["chou-fleur","fraise"],
+    ["concombre","basilic"]
+  ]
+};
+
+// Familles sensibles au gel : utilisées pour les alertes météo du coach
+const FROST_SENSITIVE_FAMILIES = ["solanacees", "cucurbitacees"];
+const FROST_SENSITIVE_PLANTS = ["basilic", "haricot-vert", "capucine", "oeillet-inde", "tournesol"];
+
+// Familles pour lesquelles la rotation n'a pas vraiment de sens
+// (vivaces, aromates, fleurs, engrais verts)
+const ROTATION_IGNORED_FAMILIES = ["autre", "lamiacees", "rosacees", "ericacees"];
+
+// Icône propre à chaque plante (repli sur l'icône de catégorie)
+const PLANT_ICONS = {
+  "tomate": "🍅", "courgette": "🥒", "salade": "🥬", "carotte": "🥕", "poireau": "🌱",
+  "pomme-de-terre": "🥔", "haricot-vert": "🫘", "petit-pois": "🫘", "feve": "🫘",
+  "epinard": "🥬", "epinard-hiver": "🥗", "chou": "🥦", "chou-fleur": "🥦", "radis": "🔴",
+  "betterave": "🟣", "navet": "⚪", "oignon": "🧅", "echalote": "🧅", "ail": "🧄",
+  "poivron": "🫑", "concombre": "🥒", "courge": "🎃", "artichaut": "🌵", "engrais-vert": "☘️",
+  "fraise": "🍓", "framboise": "🍒", "cassis": "🍇", "myrtille": "🫐", "rhubarbe": "🍂",
+  "persil": "🌿", "ciboulette": "🌱", "basilic": "🌿", "thym": "🌿", "romarin": "🌲", "menthe": "🍃",
+  "capucine": "🌺", "souci": "🌼", "tournesol": "🌻", "oeillet-inde": "🏵️"
+};
