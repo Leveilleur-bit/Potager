@@ -10,7 +10,7 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "8";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const VERSION_APP = "9";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
 const DATE_VERSION_APP = "2026-10-12";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
@@ -672,6 +672,7 @@ function genererCoaching() {
 
   // Rappels du plan des 3 mois
   conseils.push(...conseilsDuPlan());
+  if (typeof conseilsAsperges === "function") conseils.push(...conseilsAsperges(cultures));
 
   // Cultures en retard de récolte
   regrouperCultures(cultures).filter(c => c.statut === "retard").slice(0, 2).forEach(c => {
@@ -766,9 +767,9 @@ function genererCoaching() {
 
 function cleMois(annee, mois) { return annee + "-" + String(mois).padStart(2, "0"); }
 
-function troisProchainsMois() {
+function troisProchainsMois(nb = 3) {
   const auj = new Date();
-  return [0, 1, 2].map(i => {
+  return Array.from({ length: nb }, (_, i) => i).map(i => {
     const d = new Date(auj.getFullYear(), auj.getMonth() + i, 1);
     return { mois: d.getMonth() + 1, annee: d.getFullYear(), cle: cleMois(d.getFullYear(), d.getMonth() + 1), debut: d, courant: i === 0 };
   });
@@ -920,11 +921,12 @@ function placerProjet(pr) {
   ouvrirEditeurCase(e.parcelle.id, e.x, e.y, { plante: plante.id });
 }
 
-function rendrePlanTroisMois(zone) {
-  const mois3 = troisProchainsMois();
+function rendrePlanTroisMois(zone, annee = false) {
+  const nb = annee ? 12 : 3;
+  const mois3 = troisProchainsMois(nb);
   const categories = [["toutes", "Tout"], ["legume", "🥕 Légumes"], ["fruit", "🍓 Fruits"], ["aromate", "🌿 Aromates"], ["fleur", "🌼 Fleurs"]];
   const { libres } = compterCases();
-  const debut = MOIS_NOMS[mois3[0].mois - 1], fin = MOIS_NOMS[mois3[2].mois - 1];
+  const debut = MOIS_NOMS[mois3[0].mois - 1], fin = MOIS_NOMS[mois3[nb - 1].mois - 1];
   const fenetre = new Set(mois3.map(mm => mm.cle));
   const projets = etat.projets
     .filter(pr => !pr.fait || fenetre.has(pr.mois))
@@ -971,20 +973,30 @@ function rendrePlanTroisMois(zone) {
       </div>`;
   };
 
-  const cartesMois = mois3.map(mm => {
+  const cartesMois = mois3.map((mm, idx) => {
     const tout = suggestionsDuMois(mm).filter(sg => ui.filtrePlan === "toutes" || sg.plante.categorie === ui.filtrePlan);
     const visibles = tout.slice(0, 5), reste = tout.slice(5);
+    const nomMois = (mm.courant ? "Ce mois-ci" : majuscule(MOIS_NOMS[mm.mois - 1])) + (annee && mm.annee !== new Date().getFullYear() ? " " + mm.annee : "");
+    const prevus = etat.projets.filter(pr => pr.mois === mm.cle && !pr.fait).length;
+    const corps = `${tout.length ? visibles.map(sg => ligneSuggestion(sg, mm)).join("") : `<p class="vide">Rien de particulier à lancer dans cette catégorie ce mois-là.</p>`}
+        ${reste.length ? `<details class="coach-plus"><summary>${reste.length} autre${reste.length > 1 ? "s" : ""} idée${reste.length > 1 ? "s" : ""}</summary>${reste.map(sg => ligneSuggestion(sg, mm)).join("")}</details>` : ""}`;
+    if (annee && idx >= 3) {
+      return `
+      <details class="carte mois-annee"${prevus ? " open" : ""}>
+        <summary><span class="ma-nom">${esc(nomMois)}</span><span class="carte-sous-titre">${prevus ? prevus + " prévu" + (prevus > 1 ? "s" : "") + " · " : ""}${tout.length} idée${tout.length > 1 ? "s" : ""}</span></summary>
+        ${corps}
+      </details>`;
+    }
     return `
       <section class="carte">
-        <div class="carte-titre"><h2>${mm.courant ? "Ce mois-ci" : majuscule(MOIS_NOMS[mm.mois - 1])}${mm.courant ? ` <small>(${MOIS_NOMS[mm.mois - 1]})</small>` : ""}</h2>
-          <span class="carte-sous-titre">${tout.length} idée${tout.length > 1 ? "s" : ""}</span></div>
-        ${tout.length ? visibles.map(sg => ligneSuggestion(sg, mm)).join("") : `<p class="vide">Rien de particulier à lancer dans cette catégorie ce mois-là.</p>`}
-        ${reste.length ? `<details class="coach-plus"><summary>${reste.length} autre${reste.length > 1 ? "s" : ""} idée${reste.length > 1 ? "s" : ""}</summary>${reste.map(sg => ligneSuggestion(sg, mm)).join("")}</details>` : ""}
+        <div class="carte-titre"><h2>${nomMois}${mm.courant ? ` <small>(${MOIS_NOMS[mm.mois - 1]})</small>` : ""}</h2>
+          <span class="carte-sous-titre">${prevus ? prevus + " prévu" + (prevus > 1 ? "s" : "") + " · " : ""}${tout.length} idée${tout.length > 1 ? "s" : ""}</span></div>
+        ${corps}
       </section>`;
   }).join("");
 
   // Récoltes attendues dans les 3 mois
-  const fin3 = new Date(mois3[2].debut.getFullYear(), mois3[2].debut.getMonth() + 1, 0);
+  const fin3 = new Date(mois3[nb - 1].debut.getFullYear(), mois3[nb - 1].debut.getMonth() + 1, 0);
   const recoltes = regrouperCultures(listerCultures()).map(g => {
     if (g.fenetre) {
       if (g.fenetre.fin < aujourdhui() && g.statut !== "retard") return null;
@@ -997,14 +1009,15 @@ function rendrePlanTroisMois(zone) {
   }).filter(Boolean).sort((a, b) => a.tri - b.tri);
 
   const conseils = mois3.map(mm => {
+    if (annee) return "";
     const info = MONTHLY_ADVICE.find(a => a.mois === mm.mois);
     return info ? `<div class="trimestre-mois"><h3 class="sous-titre-section">${esc(info.titre)}</h3><ul>${info.court.map(t => `<li>${esc(t)}</li>`).join("")}</ul></div>` : "";
   }).join("");
 
   zone.innerHTML = `
     <section class="carte carte-coach3">
-      <div class="carte-titre"><h2>Coach du trimestre</h2><span class="carte-sous-titre">${debut} → ${fin}</span></div>
-      <p class="intro-coach">${libres > 0 ? `Tu as <strong>${libres} m² libres</strong>. ` : "Ton potager est plein pour l'instant. "}Choisis ce que tu veux cultiver ces trois prochains mois : je te propose les meilleures idées de saison, avec l'endroit le plus adapté dans ton potager, et je te rappellerai chaque étape sur l'accueil.</p>
+      <div class="carte-titre"><h2>${annee ? "Mon année au potager" : "Coach du trimestre"}</h2><span class="carte-sous-titre">${debut} → ${fin}</span></div>
+      <p class="intro-coach">${libres > 0 ? `Tu as <strong>${libres} m² libres</strong>. ` : "Ton potager est plein pour l'instant. "}${annee ? "Prévois ce que tu veux cultiver dans les douze prochains mois, mois par mois" : "Choisis ce que tu veux cultiver ces trois prochains mois"} : je te propose les meilleures idées de saison, avec l'endroit le plus adapté dans ton potager, et je te rappellerai chaque étape sur l'accueil.</p>
       <div class="chips">${categories.map(([id, label]) => `<button class="chip${ui.filtrePlan === id ? " actif" : ""}" data-catplan="${id}">${label}</button>`).join("")}</div>
       <button class="btn-discret" id="p3-agenda" style="margin-top:0.8rem">📅 Ajouter mes rappels à mon agenda</button>
     </section>
@@ -1018,10 +1031,10 @@ function rendrePlanTroisMois(zone) {
       ${recoltes.length ? recoltes.map(r => `<div class="recolte-prevue"><span>${iconePlante(r.g.plante)} <strong>${esc(r.g.plante.nom)}</strong> <small>${esc(r.g.parcelle.nom)}</small></span><span class="rp-quand">${esc(r.quand)}</span></div>`).join("")
         : `<p class="vide">Aucune récolte prévue d'ici ${fin}. Plante dès maintenant pour en avoir ensuite !</p>`}
     </section>
-    <section class="carte">
+    ${annee ? "" : `<section class="carte">
       <div class="carte-titre"><h2>Les gestes du trimestre</h2></div>
       ${conseils}
-    </section>`;
+    </section>`}`;
 
   zone.querySelector("#p3-agenda").addEventListener("click", exporterAgenda);
   zone.querySelectorAll("[data-catplan]").forEach(b => b.addEventListener("click", () => { ui.filtrePlan = b.dataset.catplan; rendreSaisons(); }));
@@ -1073,12 +1086,22 @@ function conseilsDuPlan() {
       action: { label: "Voir le plan", vue: "saisons", sousVue: "plan" }
     });
   }
+  const plusLoin = aFaire.filter(pr => positionMois(pr.mois) > 0 && pr.mois !== prochain.cle).sort((x, y) => x.mois.localeCompare(y.mois));
+  if (plusLoin.length) {
+    const lignes = plusLoin.slice(0, 5).map(pr => `${nomCourt(planteParId(pr.planteId))} (${nomMoisCle(pr.mois)})`);
+    conseils.push({
+      type: "conseil", icone: "🗓️",
+      titre: `Au programme des prochains mois : ${plusLoin.length} culture${plusLoin.length > 1 ? "s" : ""}`,
+      texte: lignes.join(", ") + (plusLoin.length > 5 ? "…" : "") + ". Je te le rappellerai le moment venu, et le mois d'avant pour commander graines et plants.",
+      action: { label: "Voir mon année", vue: "saisons", sousVue: "annee" }
+    });
+  }
   if (!aFaire.length && !etat.projets.some(pr => pr.fait)) {
     conseils.push({
       type: "conseil", icone: "🧭",
-      titre: "Prépare ton trimestre",
-      texte: "Choisis ce que tu veux cultiver d'ici trois mois : je te propose des idées de saison, l'endroit idéal, et je te rappelle chaque étape.",
-      action: { label: "Ouvrir le coach", vue: "saisons", sousVue: "plan" }
+      titre: "Prépare ton année au potager",
+      texte: "Choisis ce que tu veux cultiver dans les mois à venir, jusqu'à un an à l'avance : je te propose des idées de saison, l'endroit idéal, et je te rappelle chaque étape.",
+      action: { label: "Planifier mon année", vue: "saisons", sousVue: "annee" }
     });
   }
   return conseils;
@@ -1987,7 +2010,8 @@ function rendreSaisons() {
   const categories = [["toutes", "Tout"], ["legume", "🥕 Légumes"], ["fruit", "🍓 Fruits"], ["aromate", "🌿 Aromates"], ["fleur", "🌼 Fleurs"]];
   const onglets = `
       <div class="onglets-internes" role="tablist">
-        <button role="tab" aria-selected="${ui.vueSaisons === "plan"}" data-vs="plan">Mon plan 3 mois</button>
+        <button role="tab" aria-selected="${ui.vueSaisons === "plan"}" data-vs="plan">Plan 3 mois</button>
+        <button role="tab" aria-selected="${ui.vueSaisons === "annee"}" data-vs="annee">Mon année</button>
         <button role="tab" aria-selected="${ui.vueSaisons === "mois"}" data-vs="mois">Mois par mois</button>
         <button role="tab" aria-selected="${ui.vueSaisons === "calendrier"}" data-vs="calendrier">Calendrier</button>
         <button role="tab" aria-selected="${ui.vueSaisons === "frise"}" data-vs="frise">Frise</button>
@@ -1995,10 +2019,10 @@ function rendreSaisons() {
       </div>`;
   const brancherOnglets = () => vue.querySelectorAll("[data-vs]").forEach(b => b.addEventListener("click", () => { ui.vueSaisons = b.dataset.vs; rendreSaisons(); }));
 
-  if (ui.vueSaisons === "plan") {
+  if (ui.vueSaisons === "plan" || ui.vueSaisons === "annee") {
     vue.innerHTML = `<section class="carte carte-onglets">${onglets}</section><div id="plan3-contenu"></div>`;
     brancherOnglets();
-    rendrePlanTroisMois(vue.querySelector("#plan3-contenu"));
+    rendrePlanTroisMois(vue.querySelector("#plan3-contenu"), ui.vueSaisons === "annee");
     return;
   }
   if (ui.vueSaisons === "frise" || ui.vueSaisons === "rotation") {

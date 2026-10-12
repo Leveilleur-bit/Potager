@@ -26,7 +26,8 @@ héberger gratuitement sur **GitHub Pages**.
 - **Rotation et compagnonnage** : en plantant, l'appli signale si la même
   famille a occupé la case ces 3 dernières années et si les voisins
   s'entendent bien ou mal.
-- **Coach du trimestre** (onglet Saisons → « Mon plan 3 mois ») : pour les
+- **Mon année** (onglet Saisons) : plan sur 12 mois, mois par mois ; le coach rappelle chaque culture au bon moment. Asperges incluses, avec leurs soins mensuels.
+- **Coach du trimestre** (onglet Saisons → « Plan 3 mois ») : pour les
   3 prochains mois, des idées de cultures classées selon ton potager (place
   libre, bons voisins, rotation, dernière occasion de semer). Un bouton
   « Je le prévois » les ajoute à ton plan ; l'appli propose la meilleure

@@ -209,6 +209,13 @@ const PLANTS_DB = [
     conseilCourt: "Ne récolte jamais plus d'un tiers des tiges d'un pied à la fois.",
     conseilDetail: null },
 
+  { id: "asperge", nom: "Asperge", categorie: "legume", famille: "autre",
+    moisSemis: [], moisPlantation: [3,4], moisRecolte: [4,5,6],
+    dureeJoursMin: 0, dureeJoursMax: 0, exposition: "plein soleil, sol léger et drainé",
+    espacementCm: 40,
+    conseilCourt: "Plante pérenne : récolte les turions d'avril à la Saint-Jean, puis laisse le feuillage s'épanouir.",
+    conseilDetail: "Une aspergère reste en place 10 à 15 ans. On plante des griffes au printemps, on ne récolte presque pas la 1re année, un peu la 2e, puis à plein à partir de la 3e. Coupe les turions de 18 à 22 cm, arrête vers le 24 juin pour que la plante refasse ses réserves, coupe le feuillage quand il jaunit à l'automne et pose un paillage ou du compost." },
+
   // --- AROMATIQUES ---
   { id: "persil", nom: "Persil", categorie: "aromate", famille: "apiacees",
     moisSemis: [3,4,5,8,9], moisPlantation: [], moisRecolte: [5,6,7,8,9,10,11],
@@ -463,7 +470,7 @@ const COMPANION_PAIRS = {
     ["epinard","fraise"], ["epinard","radis"], ["epinard","chou"],
     ["basilic","poivron"], ["poivron","carotte"], ["poivron","oignon"],
     ["pomme-de-terre","capucine"], ["pomme-de-terre","oeillet-inde"],
-    ["fraise","thym"],
+    ["fraise","thym"], ["asperge","tomate"], ["asperge","persil"], ["asperge","basilic"], ["asperge","aneth"], ["asperge","souci"],
     ["tomate","bourrache"], ["fraise","bourrache"], ["courgette","bourrache"], ["courge","bourrache"],
     ["carotte","coriandre"], ["carotte","sauge"], ["carotte","cerfeuil"], ["radis","cerfeuil"],
     ["chou","aneth"], ["chou","sauge"], ["chou","origan"], ["chou","bleuet"], ["chou-fleur","sauge"],
@@ -509,7 +516,7 @@ const PLANT_ICONS = {
   "epinard": "🥬", "epinard-hiver": "🥗", "chou": "🥦", "chou-fleur": "🥦", "radis": "🔴",
   "betterave": "🟣", "navet": "⚪", "oignon": "🧅", "echalote": "🧅", "ail": "🧄",
   "poivron": "🫑", "concombre": "🥒", "courge": "🎃", "artichaut": "🌵", "engrais-vert": "☘️",
-  "fraise": "🍓", "framboise": "🍒", "cassis": "🍇", "myrtille": "🫐", "rhubarbe": "🍂",
+  "fraise": "🍓", "framboise": "🍒", "cassis": "🍇", "myrtille": "🫐", "rhubarbe": "🍂", "asperge": "🎋",
   "persil": "🌿", "coriandre": "🌿", "aneth": "🌿", "cerfeuil": "🌿", "sauge": "🌿", "origan": "🌿", "estragon": "🌿", "sarriette": "🌿", "fenouil": "🌿", "melisse": "🍃", "lavande": "💜", "bourrache": "💙", "cosmos": "🌸", "zinnia": "🌼", "bleuet": "💠", "pois-de-senteur": "🌸", "nigelle": "🌸", "achillee": "🌼", "ciboulette": "🌱", "basilic": "🌿", "thym": "🌿", "romarin": "🌲", "menthe": "🍃",
   "capucine": "🌺", "souci": "🌼", "tournesol": "🌻", "oeillet-inde": "🏵️"
 };

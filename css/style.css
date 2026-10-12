@@ -1125,3 +1125,10 @@ button.frise-ligne:hover { background: var(--papier); }
 .etapes { padding-left: 1.2rem; font-size: 0.88rem; }
 .etapes li { margin-bottom: 0.55rem; }
 .etapes code { background: var(--papier-fonce); padding: 0.05rem 0.35rem; border-radius: 4px; font-size: 0.8rem; word-break: break-all; }
+
+/* Plan de l'année : mois repliables */
+.mois-annee > summary { display:flex; justify-content:space-between; align-items:center; gap:.6rem; cursor:pointer; list-style:none; font-family:var(--font-titre,inherit); font-weight:600; }
+.mois-annee > summary::-webkit-details-marker { display:none; }
+.mois-annee > summary::after { content:"▾"; margin-left:.4rem; opacity:.6; }
+.mois-annee[open] > summary { margin-bottom:.6rem; }
+.mois-annee .ma-nom { flex:1; font-size:1.05rem; }

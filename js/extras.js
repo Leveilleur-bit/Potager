@@ -688,3 +688,26 @@ function ouvrirFormPlante(id = null) {
 document.addEventListener("DOMContentLoaded", () => {
   PhotosDB.nettoyer(idsPhotosUtilises()).catch(() => {});
 });
+
+/* ============================================================
+   Soins de l'aspergère (culture pérenne déjà en place)
+   ============================================================ */
+function conseilsAsperges(cultures) {
+  if (!(cultures || []).some(c => c.plante && c.plante.id === "asperge")) return [];
+  const m = moisCourant();
+  const soins = {
+    1: ["🎋", "Asperges : laisse dormir", "Rien à faire : évite de piétiner la planche. Si le sol est nu, une couche de paillis ou de compost mûr protège les griffes."],
+    2: ["🎋", "Asperges : désherbe et nourris", "Arrache les adventices à la main, sans abîmer les griffes, puis étale du compost mûr ou du fumier décomposé sur la planche."],
+    3: ["🎋", "Asperges : prépare la saison", "Désherbe et dresse de petites buttes de 20 à 30 cm au-dessus des griffes : elles feront blanchir les turions et réchaufferont le sol."],
+    4: ["🎋", "Asperges : la récolte commence", "Coupe les turions de 18 à 22 cm au couteau à asperges, en ne blessant pas les voisins. Cueille tous les 1 à 2 jours quand il fait doux."],
+    5: ["🎋", "Asperges : pleine récolte", "Récolte régulièrement, matin de préférence. Arrose en cas de printemps sec : les turions grossissent mieux."],
+    6: ["⏳", "Asperges : arrête vers la Saint-Jean", "Arrête de couper vers le 24 juin (plus tôt si les turions s'affinent) : laisse monter le feuillage pour que la plante refasse ses réserves."],
+    7: ["🎋", "Asperges : laisse le feuillage pousser", "Le « plumet » nourrit les griffes pour l'an prochain. Tuteure-le si le vent le couche, arrose en période sèche et surveille le criocère."],
+    8: ["🎋", "Asperges : entretiens le feuillage", "Garde la planche propre et paillée. Ne coupe rien : le feuillage doit encore travailler."],
+    9: ["🎋", "Asperges : bientôt la coupe", "Le feuillage va jaunir. Prépare un sécateur propre pour la coupe d'automne."],
+    10: ["✂️", "Asperges : coupe le feuillage jauni", "Quand il est bien jaune ou brun, coupe-le à 5 cm du sol et évacue-le (pas au compost s'il porte des criocères). Puis paille ou étale du compost."],
+    11: ["✂️", "Asperges : coupe et couvre", "Termine la coupe du feuillage si besoin, puis couvre la planche de compost ou de paillis pour l'hiver."],
+    12: ["🎋", "Asperges : repos hivernal", "Rien à faire. Vérifie juste que le paillis est en place et que l'eau ne stagne pas sur la planche."]
+  }[m];
+  return [{ type: soins[0] === "⏳" ? "alerte" : "conseil", icone: soins[0], titre: soins[1], texte: soins[2] }];
+}

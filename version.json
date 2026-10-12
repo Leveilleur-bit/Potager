@@ -1,9 +1,9 @@
 {
-  "version": "8",
+  "version": "9",
   "date": "2026-10-12",
   "nouveautes": [
-    "Synchronisation entre appareils via Google Drive (dossier privé de l'appli)",
-    "Bouton nuage dans l'en-tête pour synchroniser en un appui",
-    "Version précédente récupérable après une synchronisation"
+    "Nouvel onglet « Mon année » dans Saisons : planifie jusqu'à 12 mois à l'avance, le coach te rappelle chaque culture au bon moment",
+    "Le coach résume ce qui est au programme des prochains mois et prévient le mois d'avant",
+    "Asperges ajoutées, avec les soins de l'aspergère mois par mois dans le coach"
   ]
 }
