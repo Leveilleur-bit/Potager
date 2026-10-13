@@ -216,7 +216,50 @@ const PLANTS_DB = [
     conseilCourt: "Plante pérenne : récolte les turions d'avril à la Saint-Jean, puis laisse le feuillage s'épanouir.",
     conseilDetail: "Une aspergère reste en place 10 à 15 ans. On plante des griffes au printemps, on ne récolte presque pas la 1re année, un peu la 2e, puis à plein à partir de la 3e. Coupe les turions de 18 à 22 cm, arrête vers le 24 juin pour que la plante refasse ses réserves, coupe le feuillage quand il jaunit à l'automne et pose un paillage ou du compost." },
 
+  { id: "aubergine", nom: "Aubergine", categorie: "legume", famille: "solanacees",
+    moisSemis: [2,3], moisPlantation: [5,6], moisRecolte: [8,9],
+    dureeJoursMin: 100, dureeJoursMax: 130, exposition: "plein soleil, très abrité",
+    espacementCm: 60,
+    conseilCourt: "Très frileuse : en Bretagne, contre un mur au sud, sous tunnel ou en grand pot abrité.",
+    conseilDetail: "Elle a besoin de chaleur pour nouer ses fruits. Garde 4 à 6 fruits par pied, arrose régulièrement au pied et paille. Les étés frais bretons lui suffisent si elle est bien abritée du vent." },
+  { id: "piment", nom: "Piment", categorie: "legume", famille: "solanacees",
+    moisSemis: [2,3], moisPlantation: [5,6], moisRecolte: [8,9,10],
+    dureeJoursMin: 90, dureeJoursMax: 120, exposition: "plein soleil, très abrité",
+    espacementCm: 45,
+    conseilCourt: "Comme le poivron, en pot au soleil ou contre un mur abrité ; rentre-le avant les premières fraîcheurs.",
+    conseilDetail: "Un pied en pot peut passer l'hiver à l'intérieur, au frais et lumineux, et repartir au printemps." },
+  { id: "panais", nom: "Panais", categorie: "legume", famille: "apiacees",
+    moisSemis: [3,4,5], moisPlantation: [], moisRecolte: [10,11,12,1,2],
+    dureeJoursMin: 120, dureeJoursMax: 180, exposition: "soleil à mi-ombre",
+    espacementCm: 15,
+    conseilCourt: "Sème en place avec des graines fraîches de l'année ; le gel le rend plus sucré.",
+    conseilDetail: "Il reste en terre tout l'hiver breton sans souci : récolte au fur et à mesure. Levée lente, garde le sol humide les premières semaines." },
+  { id: "celeri", nom: "Céleri branche", categorie: "legume", famille: "apiacees",
+    moisSemis: [3,4], moisPlantation: [5,6], moisRecolte: [8,9,10,11],
+    dureeJoursMin: 100, dureeJoursMax: 140, exposition: "soleil à mi-ombre",
+    espacementCm: 35,
+    conseilCourt: "Gourmand en eau et en compost : il aime l'humidité bretonne.",
+    conseilDetail: "Bon voisin des poireaux et des choux, dont il éloigne la piéride. Paille épais pour garder le sol frais." },
+
   // --- AROMATIQUES ---
+  { id: "gingembre", nom: "Gingembre", categorie: "aromate", famille: "autre",
+    moisSemis: [], moisPlantation: [4,5], moisRecolte: [10,11],
+    dureeJoursMin: 180, dureeJoursMax: 240, exposition: "mi-ombre, chaud et abrité",
+    espacementCm: 25,
+    conseilCourt: "En Bretagne, en pot à l'abri (véranda, serre, rebord lumineux) ; rentre-le dès que les nuits passent sous 10 °C.",
+    conseilDetail: "Plante un morceau de rhizome bio bourgeonnant à 3-5 cm de profondeur, dans un terreau léger toujours frais mais jamais détrempé. Récolte quand les feuilles jaunissent, en gardant un morceau pour l'an prochain." },
+  { id: "verveine", nom: "Verveine citronnelle", categorie: "aromate", famille: "autre",
+    moisSemis: [], moisPlantation: [5,6], moisRecolte: [6,7,8,9,10],
+    dureeJoursMin: 0, dureeJoursMax: 0, exposition: "plein soleil, abrité",
+    espacementCm: 60,
+    conseilCourt: "Arbuste parfumé un peu frileux : un pied au pied d'un mur au sud, bien paillé l'hiver.",
+    conseilDetail: "Cueille les feuilles tout l'été pour les tisanes. Elle perd ses feuilles en hiver et repart tard au printemps : ne la crois pas morte trop vite." },
+  { id: "laurier", nom: "Laurier-sauce", categorie: "aromate", famille: "autre",
+    moisSemis: [], moisPlantation: [3,4,10], moisRecolte: [1,2,3,4,5,6,7,8,9,10,11,12],
+    dureeJoursMin: 0, dureeJoursMax: 0, exposition: "soleil ou mi-ombre",
+    espacementCm: 150,
+    conseilCourt: "Persistant et rustique en Bretagne : cueille les feuilles toute l'année.",
+    conseilDetail: "Il supporte bien la taille, en haie ou en boule. Attention, il prend de la place et fait de l'ombre au potager." },
   { id: "persil", nom: "Persil", categorie: "aromate", famille: "apiacees",
     moisSemis: [3,4,5,8,9], moisPlantation: [], moisRecolte: [5,6,7,8,9,10,11],
     dureeJoursMin: 70, dureeJoursMax: 90, exposition: "mi-ombre",
@@ -254,6 +297,12 @@ const PLANTS_DB = [
     conseilDetail: null },
 
   // --- FLEURS ---
+  { id: "glaieul", nom: "Glaïeul", categorie: "fleur", famille: "autre",
+    moisSemis: [], moisPlantation: [4,5,6], moisRecolte: [7,8,9],
+    dureeJoursMin: 90, dureeJoursMax: 110, exposition: "plein soleil, abrité du vent",
+    espacementCm: 15,
+    conseilCourt: "Plante les bulbes en avril-mai par petits groupes, tuteure contre le vent.",
+    conseilDetail: "Échelonne les plantations toutes les deux semaines pour avoir des fleurs tout l'été. Après la floraison, arrache les bulbes en octobre et garde-les au sec et hors gel." },
   { id: "capucine", nom: "Capucine", categorie: "fleur", famille: "autre",
     moisSemis: [4,5], moisPlantation: [5,6], moisRecolte: [],
     dureeJoursMin: 0, dureeJoursMax: 0, exposition: "soleil à mi-ombre",
@@ -470,7 +519,7 @@ const COMPANION_PAIRS = {
     ["epinard","fraise"], ["epinard","radis"], ["epinard","chou"],
     ["basilic","poivron"], ["poivron","carotte"], ["poivron","oignon"],
     ["pomme-de-terre","capucine"], ["pomme-de-terre","oeillet-inde"],
-    ["fraise","thym"], ["asperge","tomate"], ["asperge","persil"], ["asperge","basilic"], ["asperge","aneth"], ["asperge","souci"],
+    ["fraise","thym"], ["aubergine","basilic"], ["piment","basilic"], ["aubergine","haricot-vert"], ["celeri","poireau"], ["celeri","chou"], ["celeri","tomate"], ["panais","radis"], ["panais","oignon"], ["glaieul","souci"], ["asperge","tomate"], ["asperge","persil"], ["asperge","basilic"], ["asperge","aneth"], ["asperge","souci"],
     ["tomate","bourrache"], ["fraise","bourrache"], ["courgette","bourrache"], ["courge","bourrache"],
     ["carotte","coriandre"], ["carotte","sauge"], ["carotte","cerfeuil"], ["radis","cerfeuil"],
     ["chou","aneth"], ["chou","sauge"], ["chou","origan"], ["chou","bleuet"], ["chou-fleur","sauge"],
@@ -503,7 +552,7 @@ const COMPANION_PAIRS = {
 
 // Familles sensibles au gel : utilisées pour les alertes météo du coach
 const FROST_SENSITIVE_FAMILIES = ["solanacees", "cucurbitacees"];
-const FROST_SENSITIVE_PLANTS = ["basilic", "haricot-vert", "capucine", "oeillet-inde", "tournesol", "zinnia", "cosmos"];
+const FROST_SENSITIVE_PLANTS = ["gingembre", "verveine", "glaieul", "basilic", "haricot-vert", "capucine", "oeillet-inde", "tournesol", "zinnia", "cosmos"];
 
 // Familles pour lesquelles la rotation n'a pas vraiment de sens
 // (vivaces, aromates, fleurs, engrais verts)
@@ -516,7 +565,7 @@ const PLANT_ICONS = {
   "epinard": "🥬", "epinard-hiver": "🥗", "chou": "🥦", "chou-fleur": "🥦", "radis": "🔴",
   "betterave": "🟣", "navet": "⚪", "oignon": "🧅", "echalote": "🧅", "ail": "🧄",
   "poivron": "🫑", "concombre": "🥒", "courge": "🎃", "artichaut": "🌵", "engrais-vert": "☘️",
-  "fraise": "🍓", "framboise": "🍒", "cassis": "🍇", "myrtille": "🫐", "rhubarbe": "🍂", "asperge": "🎋",
+  "fraise": "🍓", "framboise": "🍒", "cassis": "🍇", "myrtille": "🫐", "rhubarbe": "🍂", "aubergine": "🍆", "piment": "🌶️", "panais": "🥕", "celeri": "🥬", "gingembre": "🫚", "verveine": "🌿", "laurier": "🍃", "glaieul": "🌸", "asperge": "🎋",
   "persil": "🌿", "coriandre": "🌿", "aneth": "🌿", "cerfeuil": "🌿", "sauge": "🌿", "origan": "🌿", "estragon": "🌿", "sarriette": "🌿", "fenouil": "🌿", "melisse": "🍃", "lavande": "💜", "bourrache": "💙", "cosmos": "🌸", "zinnia": "🌼", "bleuet": "💠", "pois-de-senteur": "🌸", "nigelle": "🌸", "achillee": "🌼", "ciboulette": "🌱", "basilic": "🌿", "thym": "🌿", "romarin": "🌲", "menthe": "🍃",
   "capucine": "🌺", "souci": "🌼", "tournesol": "🌻", "oeillet-inde": "🏵️"
 };

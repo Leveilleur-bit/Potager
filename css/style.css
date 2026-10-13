@@ -1329,3 +1329,27 @@ body.sans-defilement { overflow: hidden; }
 .plan-zone-culture.occupee { opacity: .5; }
 .plan-zone-culture:hover { filter: brightness(1.12); }
 .plan-joints { pointer-events: none; }
+
+/* Assistant d'ajout */
+.etape-ajout { margin-bottom: 1rem; }
+.etape-tete { display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-titre); font-weight: 600; font-size: 1.05rem; color: var(--titre); margin-bottom: 0.45rem; }
+.etape-tete small { font-family: var(--font-corps); font-weight: 400; font-size: 0.82rem; }
+.etape-num { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--mousse); color: #fff; font-size: 0.9rem; font-family: var(--font-corps); }
+.gp-recherche { width: 100%; margin-bottom: 0.4rem; }
+.aj-zones { display: grid; gap: 4px; margin-top: 0.6rem; padding: 6px; border-radius: 10px; background: #6f5238; }
+.aj-zone { position: relative; min-height: 46px; border-radius: 7px; border: 2px solid transparent; background: rgba(255,255,255,.12); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; padding: 3px 2px; }
+.aj-zone.choisie { background: var(--mousse); border-color: #fff; }
+.aj-zone.conseillee:not(.choisie) { border-color: #f2c94c; }
+.aj-zone.mauvaise:not(.choisie) { border-color: #e07a5f; }
+.aj-zone:disabled { opacity: .35; cursor: not-allowed; }
+.aj-ico { display: flex; gap: 1px; min-height: 18px; }
+.aj-badge { font-size: 0.6rem; font-weight: 700; background: #f2c94c; color: #3b2e10; border-radius: 6px; padding: 0 3px; }
+.aj-badge.mauvais { background: #e07a5f; color: #fff; }
+.btn-ajout-culture { width: 100%; margin-bottom: 0.9rem; }
+.rappel-varietes { background: var(--cidre-pale); border-radius: var(--radius-petit); padding: 0.4rem 0.6rem; }
+em.variete { font-style: normal; font-weight: 400; color: var(--encre-douce); font-size: 0.88em; margin-left: 0.3rem; }
+.liste-experiences { padding-left: 1.1rem; margin: 0.2rem 0 0.6rem; }
+.liste-experiences li { margin-bottom: 0.25rem; }
+/* Journal : photo d'abord */
+.btn-photo-rapide { display: flex; justify-content: center; align-items: center; width: 100%; font-size: 1.05rem; padding: 0.85rem; cursor: pointer; margin-bottom: 0.4rem; }
+.photo-mini.grande { width: 96px; height: 96px; }

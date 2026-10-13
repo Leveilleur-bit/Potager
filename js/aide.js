@@ -83,6 +83,11 @@ const VIVACES = {
     ],
     ren: { ans: 4, mois: [3, 4], t: "Les vieilles souches s'essoufflent : plante des œilletons prélevés au printemps et remplace la souche épuisée." }
   },
+  "laurier": { note: "Le laurier vit très longtemps.", soins: [{ m: [3, 4], t: "Taille légère pour garder une forme compacte et limiter l'ombre sur le potager." }, { m: [8, 9], t: "Seconde taille possible ; fais sécher les feuilles à l'ombre pour la cuisine." }] },
+  "verveine": { note: "Arbuste vivace un peu frileux.", soins: [
+      { m: [4, 5], t: "Elle repart tard : attends les nouvelles pousses, puis rabats les tiges mortes au-dessus d'un bourgeon." },
+      { m: [6, 7, 8, 9], t: "Cueille les feuilles régulièrement pour les tisanes : elle se ramifie et reste touffue." },
+      { m: [11], t: "Paille épais le pied (feuilles, paille) pour le protéger du froid humide." }] },
   "thym": { aro: true, ren: { ans: 5, mois: [4, 5, 9], t: "Les vieux pieds se dégarnissent : bouture-les ou remplace-les." }, taille: [3, 4, 8] },
   "romarin": { aro: true, ren: { ans: 8, mois: [4, 5, 9], t: "Les vieux pieds se dégarnissent : bouture-les ou remplace-les." }, taille: [4, 8] },
   "sauge": { aro: true, ren: { ans: 5, mois: [4, 5, 9], t: "La sauge devient ligneuse : bouture-la ou remplace-la." }, taille: [3, 4, 8] },
@@ -523,13 +528,15 @@ function ouvrirApercuCase(parcelleId, x, y) {
     ${soleil ? `<p class="texte-doux petit ap-soleil">${esc(libelleEnsoleillement(soleil))}${soleil.niveau !== "soleil" ? " : préfère les plantes qui aiment la mi-ombre (salades, épinards, persil, menthe, fraisiers…)." : "."}</p>` : ""}
     ${cultures.length && prot ? `<p class="texte-doux petit">${PROTECTIONS[prot.type].icone} ${esc(PROTECTIONS[prot.type].label)} posé sur la case.</p>` : ""}
     <div class="actions-fenetre">
-      <button class="btn" id="ap-modifier">${cultures.length ? "Modifier, récolter…" : "Planter ici"}</button>
+      ${cultures.length ? `<button class="btn" id="ap-modifier">Modifier, récolter…</button><button class="btn-discret" id="ap-planter">＋ Ajouter ici</button>`
+        : `<button class="btn" id="ap-planter">＋ Planter ici</button><button class="btn-discret" id="ap-modifier">Plus d'options</button>`}
       <button class="btn-discret" id="ap-fermer">Fermer</button>
     </div>`, fen => {
     const rouvrir = () => ouvrirApercuCase(parcelleId, x, y);
     fen.querySelector("#ap-fermer").addEventListener("click", fermerFenetre);
     fen.querySelector("#ap-modifier").addEventListener("click", () => ouvrirEditeurCase(parcelleId, x, y));
-    fen.querySelectorAll("[data-planter]").forEach(b => b.addEventListener("click", () => ouvrirEditeurCase(parcelleId, x, y, { plante: b.dataset.planter })));
+    fen.querySelectorAll("[data-planter]").forEach(b => b.addEventListener("click", () => ouvrirAjoutCulture({ planteId: b.dataset.planter, parcelleId, coord })));
+    fen.querySelector("#ap-planter").addEventListener("click", () => ouvrirAjoutCulture({ parcelleId, coord }));
     fen.querySelectorAll("[data-fiche]").forEach(b => b.addEventListener("click", () => ouvrirFichePlante(b.dataset.fiche, rouvrir)));
     chargerMiniatures(fen);
     fen.querySelectorAll("[data-photo]").forEach(b => b.addEventListener("click", () => ouvrirPhoto(b.dataset.photo, b.dataset.entree, rouvrir)));

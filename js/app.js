@@ -10,7 +10,7 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "25";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const VERSION_APP = "26";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
 const DATE_VERSION_APP = "2026-10-12";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
@@ -540,7 +540,8 @@ function terminerCulture(parcelle, coord, cid) {
   if (plante) {
     parcelle.historique.push({
       coord, planteId: c.planteId, famille: plante.famille,
-      debut: c.datePlantation || isoLocal(), fin: isoLocal()
+      debut: c.datePlantation || isoLocal(), fin: isoLocal(),
+      ...(c.variete ? { variete: c.variete } : {})
     });
   }
   supprimerCulture(parcelle, coord, cid);
@@ -1508,13 +1509,15 @@ function rendreInstantane() {
         <div class="chips">${liste.map(g => `<button class="chip${classe ? " chip-" + classe : ""}${g.statut === "retard" ? " chip-retard" : ""}" data-ouvrir="${g.parcelle.id}|${g.cases[0]}|${g.contenu.id}">${ico(g.plante, "1.4em")} ${esc(nomCourt(g.plante))}</button>`).join("")}</div>
       </div>`).join("")
       : `<p class="vide">Ton potager est vide pour l'instant : commence par placer tes cultures sur le plan.</p>`}
-    <div class="inst-pied"><span class="texte-doux petit">${esc(place)}</span><button class="btn-discret" id="inst-plan">Voir le plan →</button></div>`;
+    <div class="inst-pied"><button class="btn" id="inst-ajout">＋ Ajouter une culture</button><button class="btn-discret" id="inst-plan">Voir le plan →</button></div>
+    ${place ? `<p class="texte-doux petit">${esc(place)}</p>` : ""}`;
   zone.querySelectorAll("[data-ouvrir]").forEach(b => b.addEventListener("click", () => {
     const [pid, coord, cid] = b.dataset.ouvrir.split("|");
     const [x, y] = coord.split("-").map(Number);
     ouvrirApercuCase(pid, x, y);
   }));
   zone.querySelector("#inst-plan").addEventListener("click", () => allerA("plan"));
+  zone.querySelector("#inst-ajout").addEventListener("click", () => ouvrirAjoutCulture());
 }
 
 // Ce qui est prévu dans les deux prochains mois (plan de l'année)
@@ -1665,7 +1668,7 @@ function ligneCulture(c) {
     <button class="ligne-culture" data-parcelle="${c.parcelle.id}" data-coord="${c.cases[0]}" data-cid="${c.contenu.id}">
       <span class="ligne-icone">${ico(c.plante, 30)}</span>
       <span class="ligne-corps">
-        <span class="ligne-titre">${esc(c.plante.nom)}<span class="ligne-lieu">${esc(c.parcelle.nom)}${n > 1 ? `, ${n} m²` : ""}</span></span>
+        <span class="ligne-titre">${esc(c.plante.nom)}${c.contenu.variete ? ` <em class="variete">${esc(c.contenu.variete)}</em>` : ""}<span class="ligne-lieu">${esc(c.parcelle.nom)}${n > 1 ? `, ${n} m²` : ""}</span></span>
         <span class="ligne-detail">${esc(detail)}${c.contenu.notes ? " — " + esc(c.contenu.notes) : ""}</span>
         ${c.progression !== null ? `<span class="progression" aria-hidden="true"><span style="width:${Math.round(c.progression * 100)}%"></span></span>` : ""}
       </span>
@@ -1702,7 +1705,7 @@ function rendrePlan() {
       <div class="plan-cadre"><div id="plan-global" class="plan-zone"></div>
         ${ui.editionDisposition ? "" : `<button class="btn-agrandir" id="btn-agrandir" aria-label="Agrandir le plan">⤢ Agrandir</button>`}</div>
       ${ui.editionDisposition ? "" : legendePlanHTML(lireVuePlan())}
-      ${ui.editionDisposition ? "" : `<button class="btn-discret" id="btn-jardin" style="margin-top:0.6rem">🧭 Orientation, maison et bordures</button>`}
+      ${ui.editionDisposition ? "" : `<div class="actions-fenetre"><button class="btn" id="btn-plan-ajout">＋ Ajouter une culture</button><button class="btn-discret" id="btn-jardin">🧭 Orientation, maison et bordures</button></div>`}
     </section>
     <section class="carte">
       <div class="carte-titre"><h2>Détail des parcelles</h2></div>
@@ -1722,6 +1725,8 @@ function rendrePlan() {
   const ba = vue.querySelector("#btn-agrandir");
   if (ba) ba.addEventListener("click", ouvrirPlanPlein);
   rafraichirPlanPlein();
+  const bpa = vue.querySelector("#btn-plan-ajout");
+  if (bpa) bpa.addEventListener("click", () => ouvrirAjoutCulture());
   const bj = vue.querySelector("#btn-jardin");
   if (bj) bj.addEventListener("click", ouvrirReglagesJardin);
   vue.querySelectorAll("[data-vueplan]").forEach(b => b.addEventListener("click", () => {
@@ -1931,7 +1936,7 @@ function ouvrirEditeurCase(parcelleId, x, y, { editId = null, recolteId = null, 
       <div class="culture-case${edite && edite.id === c.id ? " en-edition" : ""}">
         <span class="ligne-icone">${ico(plante, 30)}</span>
         <div class="cc-corps">
-          <div class="ligne-titre">${esc(plante.nom)}</div>
+          <div class="ligne-titre">${esc(plante.nom)}${c.variete ? ` <em class="variete">${esc(c.variete)}</em>` : ""}</div>
           <div class="ligne-detail">Planté le ${esc(formatDate(c.datePlantation))}${c.notes ? " — " + esc(c.notes) : ""}</div>
           ${(() => { const ph = photosDeCulture(c.planteId, parcelle.id); return ph.length ? `<div class="photos-entree">${ph.map(p => `<button class="photo-mini" data-photo="${p.id}" data-entree="${p.entree}" aria-label="Voir la photo du ${esc(formatDate(p.date))}"><img alt="" data-photo-img="${p.id}"></button>`).join("")}</div>` : ""; })()}
           ${inf && inf.progression !== null ? `<span class="progression" aria-hidden="true"><span style="width:${Math.round(inf.progression * 100)}%"></span></span>` : ""}
@@ -1996,10 +2001,13 @@ function ouvrirEditeurCase(parcelleId, x, y, { editId = null, recolteId = null, 
           <input type="date" id="ec-date" value="${edite && edite.datePlantation ? esc(edite.datePlantation.slice(0, 10)) : isoLocal()}">
         </div>
         <div>
-          <label for="ec-notes">Variété, remarque</label>
-          <input type="text" id="ec-notes" maxlength="120" placeholder="ex. Cœur de bœuf" value="${esc(edite ? edite.notes : "")}">
+          <label for="ec-variete">Variété</label>
+          <input type="text" id="ec-variete" list="ec-varietes" maxlength="40" placeholder="ex. Cœur de bœuf" value="${esc(edite ? edite.variete || "" : "")}">
+          <datalist id="ec-varietes"></datalist>
         </div>
       </div>
+      <label for="ec-notes">Remarque (facultatif)</label>
+      <input type="text" id="ec-notes" maxlength="120" placeholder="ex. plants achetés au marché" value="${esc(edite ? edite.notes : "")}">
       <div id="ec-aide" class="aide-plante" aria-live="polite"></div>
       ${!edite && autresVides.length ? `
         <label class="case-a-cocher" id="ec-toutes-ligne" hidden>
@@ -2047,7 +2055,11 @@ function ouvrirEditeurCase(parcelleId, x, y, { editId = null, recolteId = null, 
       if (!c) return;
       if (b.dataset.act === "edit") rouvrir({ editId: cid });
       else if (b.dataset.act === "recolte") rouvrir({ recolteId: cid });
-      else avecAnnulation(`Fin de culture : ${planteParId(c.planteId).nom} retiré(e) de la case.`, () => terminerCulture(parcelle, coord, cid));
+      else {
+        avecAnnulation(`Fin de culture : ${planteParId(c.planteId).nom} retiré(e) de la case.`, () => terminerCulture(parcelle, coord, cid));
+        const h = parcelle.historique[parcelle.historique.length - 1];
+        if (h && h.planteId === c.planteId && typeof demanderAvis === "function") setTimeout(() => demanderAvis(parcelle, h), 50);
+      }
     }));
 
     if (recolte) {
@@ -2128,6 +2140,9 @@ function ouvrirEditeurCase(parcelleId, x, y, { editId = null, recolteId = null, 
         if (v.ennemis.length) morceaux.push(`<p class="aide-alerte">🤝 À éviter à côté de ${esc(listeFr(v.ennemis))}.</p>`);
         if (v.amis.length) morceaux.push(`<p class="aide-bien">🤝 S'entend bien avec ${esc(listeFr(v.amis))}.</p>`);
         if (plante.conseilCourt) morceaux.push(`<p>💡 ${esc(plante.conseilCourt)}</p>`);
+        if (typeof rappelVarietes === "function") morceaux.push(rappelVarietes(plante.id));
+        const dl = fen.querySelector("#ec-varietes");
+        if (dl && typeof varietesConnues === "function") dl.innerHTML = varietesConnues(plante.id).map(v => `<option value="${esc(v.nom)}">${v.avis ? AVIS[v.avis] + " en " + v.annee : "cultivée en " + v.annee}</option>`).join("");
         morceaux.push(`<button class="lien-bouton" data-fiche="${plante.id}">Voir la fiche complète</button>`);
         aide.innerHTML = morceaux.join("");
         aide.querySelector("[data-fiche]").addEventListener("click", () =>
@@ -2147,19 +2162,22 @@ function ouvrirEditeurCase(parcelleId, x, y, { editId = null, recolteId = null, 
         const plante = planteParId(planteId);
         const date = dateInput.value || isoLocal();
         const notes = fen.querySelector("#ec-notes").value.trim();
+        const variete = fen.querySelector("#ec-variete").value.trim();
         if (edite) {
           avecAnnulation("Culture modifiée.", () => {
             edite.planteId = planteId; edite.datePlantation = date; edite.notes = notes;
+            if (variete) edite.variete = variete; else delete edite.variete;
           });
           return;
         }
         const toutes = fen.querySelector("#ec-toutes");
         const etendre = !!(toutes && toutes.checked && ligneToutes && !ligneToutes.hidden);
         avecAnnulation(etendre ? `${plante.nom} planté(e) sur ${autresVides.length + 1} cases.` : `${plante.nom} ajouté(e) à la case.`, () => {
-          ajouterCulture(parcelle, coord, { planteId, datePlantation: date, notes });
-          if (etendre) autresVides.forEach(cc => ajouterCulture(parcelle, cc, { planteId, datePlantation: date, notes }));
+          const sup = variete ? { variete } : {};
+          ajouterCulture(parcelle, coord, { planteId, datePlantation: date, notes, ...sup });
+          if (etendre) autresVides.forEach(cc => ajouterCulture(parcelle, cc, { planteId, datePlantation: date, notes, ...sup }));
           etat.journal.unshift({ id: creerId(), date, type: "semis", planteId, parcelleId: parcelle.id,
-            texte: `${plante.nom} en place dans « ${parcelle.nom} »${etendre ? ` (${autresVides.length + 1} m²)` : ""}${notes ? " — " + notes : ""}` });
+            texte: `${plante.nom}${variete ? " « " + variete + " »" : ""} en place dans « ${parcelle.nom} »${etendre ? ` (${autresVides.length + 1} m²)` : ""}${notes ? " — " + notes : ""}` });
         });
       });
 
@@ -2222,6 +2240,7 @@ function ouvrirFichePlante(id, retour = null) {
     ${p.conseilDetail ? `<p class="texte-doux">${esc(p.conseilDetail)}</p>` : ""}
     ${amis.length ? `<p><strong>Bons voisins :</strong> ${esc(listeFr(amis))}.</p>` : ""}
     ${ennemis.length ? `<p><strong>À éloigner :</strong> ${esc(listeFr(ennemis))}.</p>` : ""}
+    ${typeof experiencesHTML === "function" ? experiencesHTML(p.id) : ""}
     ${(() => { const ph = photosDeCulture(p.id, null, 12); return ph.length ? `<h3 class="sous-titre-section">Tes photos de ${esc(nomCourt(p).toLowerCase())}</h3><div class="photos-entree">${ph.map(x => `<button class="photo-mini" data-photo="${x.id}" data-entree="${x.entree}" aria-label="Voir la photo du ${esc(formatDate(x.date))}"><img alt="" data-photo-img="${x.id}"></button>`).join("")}</div>` : ""; })()}
     <div class="actions-fenetre"><button class="btn-discret" id="fp-fermer">${retour ? "Retour" : "Fermer"}</button></div>`, fen => {
     fen.querySelector("#fp-fermer").addEventListener("click", retour || fermerFenetre);
@@ -2248,17 +2267,21 @@ function rendreCultures() {
         <button role="tab" aria-selected="${ui.vueCultures === "graines"}" data-vc="graines">Graines et courses</button>
       </div>
     </section>
+    ${ui.vueCultures === "graines" ? "" : `<button class="btn btn-ajout-culture" id="cu-ajout">＋ Ajouter une culture</button>`}
     <div id="cultures-contenu"></div>`;
+  const bAjout = vue.querySelector("#cu-ajout");
+  if (bAjout) bAjout.addEventListener("click", () => ouvrirAjoutCulture());
   vue.querySelectorAll("[data-vc]").forEach(b => b.addEventListener("click", () => { ui.vueCultures = b.dataset.vc; rendreCultures(); }));
   const zone = vue.querySelector("#cultures-contenu");
   if (ui.vueCultures === "graines") { rendreGraines(zone); return; }
 
+  zone.insertAdjacentHTML("beforebegin", "");
   const groupes = regrouperCultures(listerCultures());
   if (!groupes.length) {
     zone.innerHTML = `<section class="carte"><div class="carte-titre"><h2>Mes cultures</h2></div>
-      <p class="vide">Aucune culture en place. Touche une case du plan pour planter quelque chose.</p>
-      <button class="btn" id="btn-vers-plan">Ouvrir le plan</button></section>`;
-    zone.querySelector("#btn-vers-plan").addEventListener("click", () => allerA("plan"));
+      <p class="vide">Aucune culture en place pour l'instant.</p>
+      <button class="btn" id="btn-ajout-vide">＋ Ajouter une culture</button></section>`;
+    zone.querySelector("#btn-ajout-vide").addEventListener("click", () => ouvrirAjoutCulture());
     return;
   }
   const ordre = { retard: 0, recolter: 1, cueillette: 2, bientot: 3, "a-venir": 4, "cueillette-libre": 5, "en-place": 6 };
@@ -2460,6 +2483,9 @@ function rendreJournal() {
   vue.innerHTML = `
     <section class="carte">
       <div class="carte-titre"><h2>Mon journal de jardin</h2></div>
+      <label class="btn btn-photo-rapide">📷 Ajouter une photo<input type="file" id="jn-photo-rapide" accept="image/*" multiple hidden></label>
+      <p class="texte-doux petit">Pour suivre l'évolution d'une culture, garder une trace d'un problème ou comparer d'une année à l'autre. Les photos apparaissent aussi sur la fiche de la plante.</p>
+      <details class="accordeon" id="jn-note"><summary>✏️ Écrire une note</summary>
       <div class="ligne-champs deux">
         <div><label for="jn-type">Type</label>
           <select id="jn-type">${Object.entries(TYPES_JOURNAL).map(([k, t]) => `<option value="${k}">${t.icone} ${t.label}</option>`).join("")}</select></div>
@@ -2478,8 +2504,8 @@ function rendreJournal() {
         <span class="petit texte-doux" id="jn-photo-info"></span>
       </div>
       <div class="photos-entree" id="jn-apercu"></div>
-      <p class="texte-doux petit">📷 Les photos servent à suivre l'évolution d'une culture, à garder une trace d'un problème (pour le reconnaître ou le montrer) et à comparer d'une année à l'autre. Elles restent dans ton journal et sur la fiche de la plante ; touche « Ajouter au journal » pour les enregistrer.</p>
       <button class="btn" id="jn-ajouter">Ajouter au journal</button>
+      </details>
       <div class="journal-liste">${listeJournalHTML()}</div>
     </section>
     ${Object.keys(totaux).length ? `
@@ -2509,6 +2535,7 @@ function rendreJournal() {
         </details>`).join("")}
     </section>`;
 
+  vue.querySelector("#jn-photo-rapide").addEventListener("change", e => { ouvrirPhotoRapide(e.target.files); e.target.value = ""; });
   let fichiersPhotos = [];
   vue.querySelector("#jn-photo").addEventListener("change", e => {
     fichiersPhotos = [...e.target.files].slice(0, 6);
@@ -2801,7 +2828,7 @@ function toast(message, { annuler } = {}) {
    Version de l'appli : vérification et mise à jour
    ============================================================ */
 
-const FICHIERS_APPLI = ["./", "index.html", "css/style.css", "js/app.js", "js/plants-data.js", "js/extras.js", "js/aide.js", "js/icones.js", "js/jardin.js", "js/perso.js", "js/sync.js", "manifest.json", "sw.js"];
+const FICHIERS_APPLI = ["./", "index.html", "css/style.css", "js/app.js", "js/plants-data.js", "js/extras.js", "js/aide.js", "js/icones.js", "js/jardin.js", "js/perso.js", "js/ajout.js", "js/sync.js", "manifest.json", "sw.js"];
 
 async function verifierVersion() {
   ui.verifEnCours = true;

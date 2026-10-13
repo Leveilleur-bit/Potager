@@ -1,7 +1,10 @@
 {
-  "version": "25",
+  "version": "26",
   "date": "2026-10-13",
   "nouveautes": [
-    "L'appli s'appelle désormais « Mon Potager »"
+    "« ＋ Ajouter une culture » : choisis quoi, où (zone conseillée) et quand, en un seul écran",
+    "Nouvelles plantes : gingembre, aubergine, piment, panais, céleri, verveine citronnelle, laurier-sauce, glaïeul",
+    "Variétés : note la variété, donne ton avis en fin de culture, l'appli s'en souvient l'année suivante",
+    "Journal : « 📷 Ajouter une photo » en premier, la note écrite est repliée"
   ]
 }

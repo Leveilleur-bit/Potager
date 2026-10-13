@@ -99,6 +99,14 @@ const DESSINS = {
     + `<path d="M8 22 Q6 10 16 9 Q20 4 26 7 Q33 4 37 10 Q44 13 40 21 Q34 26 24 23 Q14 27 8 22Z" fill="${COUL.v2}"/>` + trait("M24 22 L24 9 M24 18 L15 12 M24 18 L34 12", "#7fb56a", 1.2),
   "asperge": () => ombreSol() + [[16, -6], [24, 0], [32, 6]].map(([x, a], i) => `<g transform="rotate(${a} ${x} 44)"><rect x="${x - 3}" y="${12 + i * 2}" width="6" height="${32 - i * 2}" rx="3" fill="#7fae4f"/><path d="M${x - 3} ${16 + i * 2} Q${x} ${7 + i * 2} ${x + 3} ${16 + i * 2}Z" fill="#8a5aa0"/><path d="M${x - 3} ${25 + i * 2} L${x} ${22 + i * 2} L${x + 3} ${25 + i * 2}" stroke="#5f8a3a" stroke-width="1" fill="none"/><path d="M${x - 3} ${33 + i * 2} L${x} ${30 + i * 2} L${x + 3} ${33 + i * 2}" stroke="#5f8a3a" stroke-width="1" fill="none"/></g>`).join(""),
 
+  "aubergine": () => ombreSol() + `<path d="M17 18 Q10 30 16 40 Q23 46 31 40 Q37 33 31 22 Q27 15 22 15Z" fill="#5b2a6e"/>` + reflet(21, 28, 7) + `<path d="M17 18 Q22 12 28 17 L25 20 L22 17 L19 20Z" fill="${COUL.v2}"/>` + trait("M22 15 Q23 9 27 8", COUL.v2, 2.2),
+  "piment": () => `<path d="M14 12 Q30 14 34 30 Q36 40 28 44 Q31 34 24 26 Q19 20 14 18Z" fill="#d7262b"/>` + reflet(26, 24, 5) + `<path d="M11 11 Q15 9 17 13 L15 17 Q12 16 11 11Z" fill="${COUL.v2}"/>` + trait("M12 11 Q9 7 11 4", COUL.v2, 2),
+  "panais": () => touffe(24, 17, 5, 13, COUL.v3, 6, 2.2) + `<path d="M16.5 16 L31.5 16 L25.2 43.5 Q24 45.5 22.8 43.5Z" fill="#efe3bf"/>` + trait("M19 22 L22 22.5 M27 28 L29.5 27.5 M21 33 L23.5 33.4", "#c8b88f", 1.2),
+  "celeri": () => trait("M18 44 L15 18 M22 44 L21 16 M26 44 L27 16 M30 44 L33 18", "#a8cf7a", 3.2) + [[15, 15], [21, 12], [27, 12], [33, 15]].map(([x, y]) => feuille(x, y + 3, 9, 4.5, x < 24 ? -20 : 20, COUL.v2, false)).join(""),
+  "gingembre": () => ombreSol(24, 15) + `<path d="M9 38 Q8 32 14 32 Q15 27 21 29 Q25 25 29 29 Q35 28 37 33 Q41 35 39 40 Q35 43 27 41 Q19 44 13 42 Q9 42 9 38Z" fill="#d9b27a"/>` + trait("M14 34 Q16 36 15 39 M24 31 Q25 35 23 39 M33 33 Q32 36 34 39", "#b98d55", 1.2) + trait("M20 29 L18 12 M27 29 L29 10", COUL.v3, 2) + feuille(18, 18, 9, 2.6, -15, COUL.v2, false) + feuille(29, 16, 10, 2.6, 15, COUL.v2, false),
+  "verveine": () => trait("M24 44 L24 12", "#7d9a5a", 1.8) + [[38, -60], [38, 60], [30, -50], [30, 50], [22, -40], [22, 40]].map(([y, a]) => feuille(24, y, 13, 2.6, a, "#9cc65a")).join("") + feuille(24, 15, 9, 2.4, 0, "#b5d870"),
+  "laurier": () => trait("M14 42 Q22 30 34 10", "#6b5236", 2) + [[17, 37, -70], [20, 32, 60], [23, 28, -65], [26, 23, 55], [29, 18, -60], [32, 14, 50]].map(([x, y, a]) => feuille(x, y, 11, 4.2, a, "#2f5b33")).join(""),
+  "glaieul": () => trait("M24 44 L24 8", COUL.v2, 2) + feuille(24, 44, 22, 2.4, -12, COUL.v3, false) + feuille(24, 44, 20, 2.4, 14, COUL.v3, false) + [[10, -1], [16, 1], [22, -1], [28, 1]].map(([y, s]) => `<path d="M24 ${y} q${s * 8} 2 ${s * 6} 7 q${-s * 4} 1 ${-s * 6} -3Z" fill="#f08cae"/><circle cx="${24 + s * 3}" cy="${y + 3}" r="2.6" fill="#f6a8c2"/>`).join(""),
   // --- Aromatiques
   "persil": () => trait("M24 44 L16 24 M24 44 L24 18 M24 44 L32 24", COUL.v2, 1.6)
     + [[16, 21], [24, 15], [32, 21]].map(([x, y]) => [[0, 0], [-4, 2], [4, 2], [-2.5, -3.5], [2.5, -3.5], [0, 4]].map(([dx, dy]) => rond(x + dx, y + dy, 3, COUL.v1, false)).join("")).join(""),
@@ -170,7 +178,7 @@ function icoSVG(plante, x, y, taille) {
 
 /* ---------- Besoin en eau (pour la vue « Arrosage » du plan) ---------- */
 const BESOIN_EAU = {
-  fort: ["tomate", "courgette", "concombre", "courge", "salade", "poivron", "haricot-vert", "epinard", "chou", "chou-fleur", "fraise", "framboise", "cassis", "myrtille", "rhubarbe", "menthe", "basilic", "celeri"],
+  fort: ["aubergine", "piment", "celeri", "tomate", "courgette", "concombre", "courge", "salade", "poivron", "haricot-vert", "epinard", "chou", "chou-fleur", "fraise", "framboise", "cassis", "myrtille", "rhubarbe", "menthe", "basilic", "celeri"],
   faible: ["thym", "romarin", "sauge", "lavande", "origan", "sarriette", "estragon", "ail", "echalote", "oignon", "achillee", "capucine", "bleuet", "nigelle", "zinnia", "cosmos", "engrais-vert", "asperge"]
 };
 function besoinEau(plante) {
