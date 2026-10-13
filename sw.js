@@ -14,7 +14,7 @@
    nouvelle version.
    ============================================================ */
 
-const CACHE_VERSION = "v22";
+const CACHE_VERSION = "v23";
 const CACHE_NAME = "potager-breton-" + CACHE_VERSION;
 
 const FICHIERS_A_METTRE_EN_CACHE = [
@@ -28,6 +28,7 @@ const FICHIERS_A_METTRE_EN_CACHE = [
   "./js/aide.js",
   "./js/icones.js",
   "./js/jardin.js",
+  "./js/perso.js",
   "./js/sync.js",
   "./icon-192.png",
   "./icon-512.png"
@@ -99,4 +100,43 @@ self.addEventListener("fetch", (event) => {
         .catch(() => caches.match(requete))
     );
   }
+});
+
+/* ---------- Rappels du matin : notification en arrière-plan ---------- */
+function lireResumeMatin() {
+  return new Promise(resolve => {
+    const req = indexedDB.open("potagerBretonNotif", 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("resume");
+    req.onerror = () => resolve(null);
+    req.onsuccess = () => {
+      try {
+        const t = req.result.transaction("resume", "readwrite"), st = t.objectStore("resume");
+        const g = st.get("matin");
+        g.onsuccess = () => resolve({ resume: g.result || null, st });
+        g.onerror = () => resolve(null);
+      } catch (e) { resolve(null); }
+    };
+  });
+}
+async function rappelDuMatin() {
+  const lu = await lireResumeMatin();
+  if (!lu || !lu.resume || !lu.resume.conseils || !lu.resume.conseils.length) return;
+  const maintenant = new Date();
+  const jour = maintenant.toISOString().slice(0, 10);
+  if (lu.resume.dernierEnvoi === jour || maintenant.getHours() < (lu.resume.heure || 8) || maintenant.getHours() > 12) return;
+  const [premier, ...autres] = lu.resume.conseils;
+  await self.registration.showNotification("Ce matin au jardin", {
+    body: premier.titre + (autres.length ? "\n" + autres.map(c => "• " + c.titre).join("\n") : ""),
+    icon: "icon-192.png", badge: "icon-192.png", tag: "potager-matin"
+  });
+  const req = indexedDB.open("potagerBretonNotif", 1);
+  req.onsuccess = () => { try { req.result.transaction("resume", "readwrite").objectStore("resume").put({ ...lu.resume, dernierEnvoi: jour }, "matin"); } catch (e) { /* rien */ } };
+}
+self.addEventListener("periodicsync", event => { if (event.tag === "rappels-matin") event.waitUntil(rappelDuMatin()); });
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  event.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then(liste => {
+    const ouverte = liste.find(c => c.url.includes(self.registration.scope));
+    return ouverte ? ouverte.focus() : clients.openWindow("./#accueil");
+  }));
 });

@@ -212,7 +212,8 @@ function problemesDuMoment(cultures, mois = moisCourant()) {
   const humide = !!(jours && jours.slice(0, 4).some(j => j.pluie >= 2) && jours.slice(0, 4).every(j => j.tmin >= 5));
   return PROBLEMES.filter(p => p.mois.includes(mois)).map(p => {
     const chezMoi = p.plantes.filter(id => presentes.has(id));
-    return { p, chezMoi, score: (chezMoi.length ? 10 : 0) + (humide && p.humide ? 3 : 0) + chezMoi.length, humideAujourdhui: humide && p.humide };
+    const souci = typeof prefsJardin === "function" && prefsJardin().soucis.some(x => p.id === x || (x === "pucerons" && p.id === "pucerons"));
+    return { p, chezMoi, score: (chezMoi.length ? 10 : 0) + (humide && p.humide ? 3 : 0) + chezMoi.length + (souci ? 6 : 0), humideAujourdhui: humide && p.humide };
   }).sort((a, b) => b.score - a.score);
 }
 
@@ -290,13 +291,13 @@ function conseilsEau(cultures) {
     if (fruitiers.length) qui.push("les petits fruits en pleine formation");
     conseils.push({
       type: "conseil", icone: "💧", titre: "Plus de pluie depuis plusieurs jours",
-      texte: `Le sol s'est asséché. ${qui.length ? "Pense d'abord à " + listeFr(qui) + ". " : ""}Arrose au pied, copieusement mais pas tous les jours (l'eau descend alors vers les racines), tôt le matin ou le soir. Un binage vaut deux arrosages, et un paillis garde la fraîcheur.`
+      texte: `Le sol s'est asséché. ${qui.length ? "Pense d'abord à " + listeFr(qui) + ". " : ""}Arrose au pied${typeof prefsJardin === "function" && prefsJardin().recuperateur ? " avec l'eau du récupérateur (elle est à bonne température et sans calcaire)" : ""}, copieusement mais pas tous les jours (l'eau descend alors vers les racines), tôt le matin ou le soir. Un binage vaut deux arrosages, et un paillis garde la fraîcheur${typeof prefsJardin === "function" && prefsJardin().recuperateur ? " : ton récupérateur durera plus longtemps" : ""}.`
     });
   }
   if (saison && pluieProche >= 4) {
     conseils.push({
       type: "conseil", icone: "🌧️", titre: "De la pluie est annoncée",
-      texte: "Garde l'arrosoir au chaud : inutile d'arroser avant l'averse. Profites-en pour arracher les herbes, la terre est meuble."
+      texte: "Garde l'arrosoir au chaud : inutile d'arroser avant l'averse." + (typeof prefsJardin === "function" && prefsJardin().recuperateur ? " Vérifie que le récupérateur est bien raccordé et que son trop-plein s'évacue." : "") + " Profites-en pour arracher les herbes, la terre est meuble."
     });
   }
   const chaud = proche.find(j => j.tmax >= 28);
@@ -478,7 +479,8 @@ function ideesPourCase(parcelle, x, y) {
   return PLANTS_DB.filter(p => moisPourPlante(p).has(m)).map(p => {
     const v = voisinage(parcelle, x, y, p.id);
     const rot = verifierRotation(parcelle, coord, p.id);
-    const score = v.amis.length * 2 - v.ennemis.length * 6 - (rot ? 3 : 0) + (p.categorie === "legume" ? 1.5 : 0) + (estDernierMois(p, m) ? 1 : 0);
+    const ombre = typeof ensoleillementCase === "function" ? scoreEnsoleillement(p, ensoleillementCase(parcelle, coord)) : 0;
+    const score = v.amis.length * 2 - v.ennemis.length * 6 - (rot ? 3 : 0) + (p.categorie === "legume" ? 1.5 : 0) + (estDernierMois(p, m) ? 1 : 0) + ombre;
     return { p, score, amis: v.amis };
   }).filter(s => s.score >= 0).sort((a, b) => b.score - a.score || a.p.nom.localeCompare(b.p.nom, "fr")).slice(0, 5);
 }
@@ -512,11 +514,13 @@ function ouvrirApercuCase(parcelleId, x, y) {
     </div>`;
   }).join("");
   const idees = cultures.length ? [] : ideesPourCase(parcelle, x, y);
+  const soleil = typeof ensoleillementCase === "function" && reglagesJardin().arbres.length ? ensoleillementCase(parcelle, coord) : null;
   ouvrirFenetre(`
     <h2>${esc(parcelle.nom)} <small class="texte-doux">case ${x + 1}${parcelle.hauteur > 1 ? "-" + (y + 1) : ""}</small></h2>
     ${cultures.length ? blocs : `<p class="texte-doux">Case libre${prot ? ` · ${esc(PROTECTIONS[prot.type].label.toLowerCase())} posé` : ""}.</p>
       ${idees.length ? `<h3 class="sous-titre-section">Idées pour cette case en ${MOIS_NOMS[m - 1]}</h3>
       <div class="chips">${idees.map(s => `<button class="chip" data-planter="${s.p.id}" title="${s.amis.length ? "Bon voisin de " + esc(listeFr(s.amis.slice(0, 2))) : ""}">${ico(s.p, "1.4em")} ${esc(nomCourt(s.p))}</button>`).join("")}</div>` : ""}`}
+    ${soleil ? `<p class="texte-doux petit ap-soleil">${esc(libelleEnsoleillement(soleil))}${soleil.niveau !== "soleil" ? " : préfère les plantes qui aiment la mi-ombre (salades, épinards, persil, menthe, fraisiers…)." : "."}</p>` : ""}
     ${cultures.length && prot ? `<p class="texte-doux petit">${PROTECTIONS[prot.type].icone} ${esc(PROTECTIONS[prot.type].label)} posé sur la case.</p>` : ""}
     <div class="actions-fenetre">
       <button class="btn" id="ap-modifier">${cultures.length ? "Modifier, récolter…" : "Planter ici"}</button>

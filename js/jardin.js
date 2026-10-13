@@ -135,7 +135,7 @@ function ouvrirReglagesJardin() {
   const j = reglagesJardin();
   ouvrirFenetre(`
     <h2>Mon jardin</h2>
-    <p class="texte-doux petit">Pour que le plan ressemble à ton jardin : où est le sud, où est la maison, et en quoi sont faits tes bacs.</p>
+    <p class="texte-doux petit">Pour que le plan ressemble à ton jardin et que les conseils lui collent : sud, maison, bordures, arrosage et soucis.</p>
     <h3 class="sous-titre-section">Le sud est…</h3>
     <div class="chips">${Object.entries(DIRECTIONS_SUD).map(([k, l]) => `<button class="chip${j.sud === k ? " actif" : ""}" data-sud="${k}">${l}</button>`).join("")}</div>
     <h3 class="sous-titre-section">La maison est…</h3>
@@ -143,8 +143,10 @@ function ouvrirReglagesJardin() {
     <h3 class="sous-titre-section">Bordure des bacs</h3>
     ${etat.parcelles.map(p => `<div class="ligne-bordure"><label for="bd-${p.id}">${esc(p.nom)}</label>
       <select id="bd-${p.id}" data-bordure="${p.id}">${Object.entries(BORDURES).map(([k, l]) => `<option value="${k}"${bordureDe(p) === k ? " selected" : ""}>${l}</option>`).join("")}</select></div>`).join("")}
+    ${typeof sectionPrefsJardinHTML === "function" ? sectionPrefsJardinHTML() : ""}
     <div class="actions-fenetre"><button class="btn" id="rj-ok">Terminé</button></div>`, fen => {
     const changer = fn => { fn(); sauvegarder(); rendre(); ouvrirReglagesJardin(); };
+    if (typeof brancherPrefsJardin === "function") brancherPrefsJardin(fen, ouvrirReglagesJardin);
     const jardin = () => (etat.reglages.jardin = Object.assign({}, etat.reglages.jardin || {}));
     fen.querySelectorAll("[data-sud]").forEach(b => b.addEventListener("click", () => changer(() => { jardin().sud = b.dataset.sud; })));
     fen.querySelectorAll("[data-maison]").forEach(b => b.addEventListener("click", () => changer(() => { jardin().maison = b.dataset.maison; })));

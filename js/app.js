@@ -10,7 +10,7 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "22";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const VERSION_APP = "23";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
 const DATE_VERSION_APP = "2026-10-12";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
@@ -572,7 +572,7 @@ async function actualiserMeteo(force = false) {
   meteoEnCours = (async () => {
     try {
       const url = "https://api.open-meteo.com/v1/forecast?latitude=" + lieu.lat + "&longitude=" + lieu.lon +
-        "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_gusts_10m_max" +
+        "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_gusts_10m_max,wind_direction_10m_dominant" +
         "&timezone=Europe%2FParis&past_days=7&forecast_days=5";
       const r = await fetch(url);
       if (!r.ok) throw new Error("HTTP " + r.status);
@@ -582,7 +582,8 @@ async function actualiserMeteo(force = false) {
         jours: d.time.map((t, i) => ({
           date: t, code: d.weather_code[i],
           tmin: d.temperature_2m_min[i], tmax: d.temperature_2m_max[i],
-          pluie: d.precipitation_sum[i] || 0, rafales: d.wind_gusts_10m_max[i] || 0
+          pluie: d.precipitation_sum[i] || 0, rafales: d.wind_gusts_10m_max[i] || 0,
+          directionVent: d.wind_direction_10m_dominant ? d.wind_direction_10m_dominant[i] : null
         }))
       };
       ecrireJSON(CLE_METEO, meteo);
@@ -657,6 +658,7 @@ function genererCoaching() {
 
   // Rappels du plan des 3 mois
   conseils.push(...conseilsDuPlan());
+  if (typeof conseilsPerso === "function") conseils.push(...conseilsPerso(cultures));
   if (typeof conseilsVivaces === "function") conseils.push(...conseilsVivaces(cultures), ...conseilsSante(cultures), ...conseilsEau(cultures));
 
   // Cultures en retard de récolte
@@ -1145,11 +1147,12 @@ const DISPOSITION_ICONES = {
 };
 
 /* ---------- Couleurs du plan selon la vue choisie (État, Rotation, Arrosage) ---------- */
-const VUES_PLAN = { etat: "État", rotation: "Rotation", eau: "Arrosage" };
+const VUES_PLAN = { etat: "État", rotation: "Rotation", eau: "Arrosage", soleil: "Soleil" };
 const LEGENDES_PLAN = {
   etat: { retard: ["#e07a5f", "Récolte en retard"], recolte: ["#e9b949", "À récolter"], bientot: ["#f0d48a", "Bientôt prêt"], pousse: ["#a7c98a", "En train de pousser"], perenne: ["#6f9e64", "Pérenne"] },
   rotation: { fruits: ["#e48a6a", "Légumes-fruits"], feuilles: ["#9cc77a", "Feuilles et choux"], racines: ["#e3b66a", "Racines et bulbes"], legumineuses: ["#b6a3d8", "Légumineuses"], hors: ["#a9c3b8", "Hors rotation (vivaces, aromates, fleurs)"] },
-  eau: { fort: ["#4f86c6", "Beaucoup d'eau"], moyen: ["#8db8dd", "Arrosage moyen"], faible: ["#e2d3a8", "Peu d'eau"] }
+  eau: { fort: ["#4f86c6", "Beaucoup d'eau"], moyen: ["#8db8dd", "Arrosage moyen"], faible: ["#e2d3a8", "Peu d'eau"] },
+  soleil: { soleil: ["#f2c94c", "Plein soleil"], "mi-ombre": ["#9fc3a0", "Mi-ombre"], ombre: ["#6f8f9f", "Ombre des arbres"] }
 };
 const ORDRE_ETAT = ["retard", "recolte", "bientot", "pousse", "perenne"];
 function lireVuePlan() { try { const v = localStorage.getItem("potagerBretonVuePlan"); return LEGENDES_PLAN[v] ? v : "etat"; } catch (e) { return "etat"; } }
@@ -1171,6 +1174,7 @@ function categoriePlan(parcelle, coord, contenu, mode) {
 }
 // Catégories d'une case (une seule, la plus urgente, pour la vue État)
 function categoriesCase(parcelle, coord, mode) {
+  if (mode === "soleil") return typeof ensoleillementCase === "function" ? [ensoleillementCase(parcelle, coord).niveau] : [];
   const cats = [...new Set(culturesDe(parcelle, coord).map(c => categoriePlan(parcelle, coord, c, mode)).filter(Boolean))];
   if (mode === "etat" && cats.length) return [cats.sort((x, y) => ORDRE_ETAT.indexOf(x) - ORDRE_ETAT.indexOf(y))[0]];
   return cats;
@@ -1302,7 +1306,7 @@ function dessinerPlan(conteneur, { edition = false, echelle = null } = {}) {
           .forEach(([k, v]) => rect.setAttribute(k, v));
         const prot = protectionDe(parcelle, coord);
         rect.setAttribute("class", "plan-case plan-zone-culture" + (plantes.length ? " occupee" : "") + (prot ? " protegee prot-" + prot.type : ""));
-        rect.style.fill = plantes.length ? remplissage(couleursCase(parcelle, coord, mode))
+        rect.style.fill = (plantes.length || mode === "soleil") ? remplissage(couleursCase(parcelle, coord, mode))
           : prot ? (prot.type === "paillage" ? `url(#${prefixe}paille)` : prot.type === "voile" ? "rgba(240,244,246,.55)" : "rgba(120,150,170,.45)")
           : "transparent";
         if (!edition) {
@@ -1440,6 +1444,7 @@ function rendreAccueil() {
 
   rendreJour();
   rendreCoach();
+  if (typeof ecrireResumeMatin === "function") ecrireResumeMatin();
   rendreInstantane();
   rendreBientot();
   rendreMeteo();
@@ -2570,6 +2575,7 @@ function rendreReglages() {
         : `<p class="vide">Aucune commune trouvée.</p>`}</div>
     </section>
 
+    ${typeof carteNotificationsHTML === "function" ? carteNotificationsHTML() : ""}
     ${carteAspectHTML()}
     ${carteSynchroHTML()}
 
@@ -2677,6 +2683,7 @@ function rendreReglages() {
   });
   vue.querySelector("#rg-exporter").addEventListener("click", exporterDonnees);
   vue.querySelector("#rg-drive").addEventListener("click", sauvegarderVersDrive);
+  if (typeof brancherNotifications === "function") brancherNotifications(vue);
   brancherAspect(vue); brancherSynchro(vue);
   brancherAgenda(vue);
   brancherMesPlantes(vue);
@@ -2794,7 +2801,7 @@ function toast(message, { annuler } = {}) {
    Version de l'appli : vérification et mise à jour
    ============================================================ */
 
-const FICHIERS_APPLI = ["./", "index.html", "css/style.css", "js/app.js", "js/plants-data.js", "js/extras.js", "js/aide.js", "js/icones.js", "js/jardin.js", "js/sync.js", "manifest.json", "sw.js"];
+const FICHIERS_APPLI = ["./", "index.html", "css/style.css", "js/app.js", "js/plants-data.js", "js/extras.js", "js/aide.js", "js/icones.js", "js/jardin.js", "js/perso.js", "js/sync.js", "manifest.json", "sw.js"];
 
 async function verifierVersion() {
   ui.verifEnCours = true;
