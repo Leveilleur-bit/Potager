@@ -378,7 +378,7 @@ function carteRefaireHTML() {
     ${lignes.map(l => `
       <div class="refaire">
         <div class="rf-corps">
-          <div class="rf-titre">${iconePlante(l.plante)} ${esc(l.plante.nom)} <small>${esc(MOIS_NOMS[l.mois - 1])}</small></div>
+          <div class="rf-titre">${ico(l.plante, "1.4em")} ${esc(l.plante.nom)} <small>${esc(MOIS_NOMS[l.mois - 1])}</small></div>
           <div class="rf-detail">${esc([...l.lieux].join(", "))}${l.rotation ? " · mets-la plutôt dans une autre parcelle (rotation)" : ""}</div>
         </div>
         <button class="btn-petit${l.deja ? " prevu" : ""}" data-prevoir="${l.plante.id}|${l.cle}" aria-pressed="${l.deja}">${l.deja ? "✓ Prévu" : "＋ Prévoir"}</button>
@@ -443,4 +443,95 @@ appliquerAspect();
 if (window.matchMedia) {
   const mq = window.matchMedia("(prefers-color-scheme: dark)");
   if (mq.addEventListener) mq.addEventListener("change", appliquerAspect);
+}
+
+/* ---------- Aperçu d'une case au toucher (avant l'éditeur complet) ---------- */
+
+function phraseEtatCulture(plante, inf, contenu) {
+  if (!inf) return "";
+  const f = inf.fenetre;
+  switch (inf.statut) {
+    case "retard": return "Récolte en retard ? Va voir si c'est encore bon.";
+    case "recolter": return f ? `Prêt à récolter, jusqu'au ${formatDate(f.fin)} environ.` : "Prêt à récolter.";
+    case "cueillette": return "En saison de récolte : cueille au fur et à mesure.";
+    case "cueillette-libre": return "À cueillir selon tes besoins.";
+    case "bientot": return f ? `Bientôt prêt, vers le ${formatDate(f.debut)}.` : "Bientôt prêt.";
+    case "a-venir": return f ? `En train de pousser : récolte vers ${MOIS_NOMS[f.debut.getMonth()]}.` : "En train de pousser.";
+    default: return estPerenne(plante) ? `Pérenne, ${libelleAnnee(ageEnAnnees(inf.datePlantation))}.` : `En place depuis le ${formatDate(contenu.datePlantation)}.`;
+  }
+}
+
+async function ajouterPhotosCulture(parcelle, contenu, fichiers) {
+  const pl = planteParId(contenu.planteId);
+  const photos = [];
+  for (const f of [...fichiers].slice(0, 6)) { try { photos.push(await enregistrerPhoto(f)); } catch (e) { toast("Une photo n'a pas pu être enregistrée."); } }
+  if (!photos.length) return false;
+  etat.journal.unshift({ id: creerId(), date: isoLocal(), type: "note", planteId: contenu.planteId, parcelleId: parcelle.id, texte: `Suivi : ${pl.nom} (${parcelle.nom})`, photos });
+  sauvegarder();
+  toast(`Photo ajoutée au suivi de ${nomCourt(pl)}.`);
+  return true;
+}
+
+// Ce qu'on pourrait mettre dans une case libre maintenant
+function ideesPourCase(parcelle, x, y) {
+  const m = moisCourant(), coord = x + "-" + y;
+  return PLANTS_DB.filter(p => moisPourPlante(p).has(m)).map(p => {
+    const v = voisinage(parcelle, x, y, p.id);
+    const rot = verifierRotation(parcelle, coord, p.id);
+    const score = v.amis.length * 2 - v.ennemis.length * 6 - (rot ? 3 : 0) + (p.categorie === "legume" ? 1.5 : 0) + (estDernierMois(p, m) ? 1 : 0);
+    return { p, score, amis: v.amis };
+  }).filter(s => s.score >= 0).sort((a, b) => b.score - a.score || a.p.nom.localeCompare(b.p.nom, "fr")).slice(0, 5);
+}
+
+function ouvrirApercuCase(parcelleId, x, y) {
+  const parcelle = etat.parcelles.find(p => p.id === parcelleId);
+  if (!parcelle) return;
+  const coord = x + "-" + y;
+  const cultures = culturesDe(parcelle, coord);
+  const prot = protectionDe(parcelle, coord);
+  const m = moisCourant();
+  const blocs = cultures.map(c => {
+    const pl = planteParId(c.planteId);
+    if (!pl) return "";
+    const inf = infosCulture(parcelle, coord, c);
+    const soin = estPerenne(pl) ? (soinsDeVivace(pl, m)[0] || {}).t : null;
+    const geste = soin || pl.conseilCourt;
+    const photos = photosDeCulture(c.planteId, parcelle.id, 4);
+    return `<div class="ap-culture">
+      <div class="ap-ico">${ico(pl, 52)}</div>
+      <div class="ap-corps">
+        <div class="ap-nom">${esc(pl.nom)}${c.notes ? ` <small>${esc(c.notes)}</small>` : ""}</div>
+        <div class="ap-etat">${esc(phraseEtatCulture(pl, inf, c))}</div>
+        ${geste ? `<p class="ap-geste">💡 ${esc(geste)}</p>` : ""}
+        ${photos.length ? `<div class="photos-entree">${photos.map(p => `<button class="photo-mini" data-photo="${p.id}" data-entree="${p.entree}" aria-label="Voir la photo du ${esc(formatDate(p.date))}"><img alt="" data-photo-img="${p.id}"></button>`).join("")}</div>` : ""}
+        <div class="ap-actions">
+          <label class="btn-discret bouton-fichier">📷 Photo<input type="file" accept="image/*" data-ap-photo="${c.id}" hidden></label>
+          <button class="btn-discret" data-fiche="${pl.id}">Fiche</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+  const idees = cultures.length ? [] : ideesPourCase(parcelle, x, y);
+  ouvrirFenetre(`
+    <h2>${esc(parcelle.nom)} <small class="texte-doux">case ${x + 1}${parcelle.hauteur > 1 ? "-" + (y + 1) : ""}</small></h2>
+    ${cultures.length ? blocs : `<p class="texte-doux">Case libre${prot ? ` · ${esc(PROTECTIONS[prot.type].label.toLowerCase())} posé` : ""}.</p>
+      ${idees.length ? `<h3 class="sous-titre-section">Idées pour cette case en ${MOIS_NOMS[m - 1]}</h3>
+      <div class="chips">${idees.map(s => `<button class="chip" data-planter="${s.p.id}" title="${s.amis.length ? "Bon voisin de " + esc(listeFr(s.amis.slice(0, 2))) : ""}">${ico(s.p, "1.4em")} ${esc(nomCourt(s.p))}</button>`).join("")}</div>` : ""}`}
+    ${cultures.length && prot ? `<p class="texte-doux petit">${PROTECTIONS[prot.type].icone} ${esc(PROTECTIONS[prot.type].label)} posé sur la case.</p>` : ""}
+    <div class="actions-fenetre">
+      <button class="btn" id="ap-modifier">${cultures.length ? "Modifier, récolter…" : "Planter ici"}</button>
+      <button class="btn-discret" id="ap-fermer">Fermer</button>
+    </div>`, fen => {
+    const rouvrir = () => ouvrirApercuCase(parcelleId, x, y);
+    fen.querySelector("#ap-fermer").addEventListener("click", fermerFenetre);
+    fen.querySelector("#ap-modifier").addEventListener("click", () => ouvrirEditeurCase(parcelleId, x, y));
+    fen.querySelectorAll("[data-planter]").forEach(b => b.addEventListener("click", () => ouvrirEditeurCase(parcelleId, x, y, { plante: b.dataset.planter })));
+    fen.querySelectorAll("[data-fiche]").forEach(b => b.addEventListener("click", () => ouvrirFichePlante(b.dataset.fiche, rouvrir)));
+    chargerMiniatures(fen);
+    fen.querySelectorAll("[data-photo]").forEach(b => b.addEventListener("click", () => ouvrirPhoto(b.dataset.photo, b.dataset.entree, rouvrir)));
+    fen.querySelectorAll("[data-ap-photo]").forEach(inp => inp.addEventListener("change", async () => {
+      const c = cultures.find(k => k.id === inp.dataset.apPhoto);
+      if (c && await ajouterPhotosCulture(parcelle, c, inp.files)) rouvrir();
+    }));
+  });
 }

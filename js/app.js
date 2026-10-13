@@ -10,7 +10,7 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "13";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const VERSION_APP = "14";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
 const DATE_VERSION_APP = "2026-10-12";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
@@ -438,7 +438,8 @@ function infosCulture(parcelle, coord, contenu) {
   const auj = aujourdhui();
   const m = moisCourant();
   const joursDepuis = joursEntre(datePlantation, auj);
-  const fenetre = fenetreRecolte(plante, datePlantation);
+  // Les pérennes n'ont pas de « fenêtre » de récolte unique : on suit les mois de récolte
+  const fenetre = typeof estPerenne === "function" && estPerenne(plante) ? null : fenetreRecolte(plante, datePlantation);
   let statut, progression = null;
 
   if (!fenetre) {
@@ -925,7 +926,7 @@ function rendrePlanTroisMois(zone, annee = false) {
     return `
       <div class="projet projet-${st.classe}">
         <div class="projet-tete">
-          <span class="projet-nom">${iconePlante(plante)} ${esc(plante.nom)}</span>
+          <span class="projet-nom">${ico(plante, "1.4em")} ${esc(plante.nom)}</span>
           <span class="projet-statut st-${st.classe}">${esc(st.label)}</span>
         </div>
         ${pr.fait ? "" : `<div class="projet-detail">${e ? "📍 " + esc(libelleCase(e.parcelle, e.x, e.y)) + (e.amis.length ? " — bon voisin de " + esc(listeFr(e.amis.slice(0, 2))) : "") : "Plus de place adaptée pour l'instant"}</div>
@@ -943,7 +944,7 @@ function rendrePlanTroisMois(zone, annee = false) {
     return `
       <div class="suggestion" style="--famille:${f.color}">
         <div class="sg-corps">
-          <div class="sg-titre">${iconePlante(sg.plante)} ${esc(sg.plante.nom)}
+          <div class="sg-titre">${ico(sg.plante, "1.4em")} ${esc(sg.plante.nom)}
             <span class="tag-famille" style="background:${f.color}">${esc(majuscule(actionPourMois(sg.plante, mm.mois)))}</span>
             ${sg.dernier ? `<span class="tag-urgent">Dernière occasion</span>` : ""}
             ${sg.dejaLa ? `<span class="tag-info">Déjà chez toi</span>` : ""}</div>
@@ -1013,7 +1014,7 @@ function rendrePlanTroisMois(zone, annee = false) {
     ${cartesMois}
     <section class="carte">
       <div class="carte-titre"><h2>Récoltes attendues</h2></div>
-      ${recoltes.length ? recoltes.map(r => `<div class="recolte-prevue"><span>${iconePlante(r.g.plante)} <strong>${esc(r.g.plante.nom)}</strong> <small>${esc(r.g.parcelle.nom)}</small></span><span class="rp-quand">${esc(r.quand)}</span></div>`).join("")
+      ${recoltes.length ? recoltes.map(r => `<div class="recolte-prevue"><span>${ico(r.g.plante, "1.4em")} <strong>${esc(r.g.plante.nom)}</strong> <small>${esc(r.g.parcelle.nom)}</small></span><span class="rp-quand">${esc(r.quand)}</span></div>`).join("")
         : `<p class="vide">Aucune récolte prévue d'ici ${fin}. Plante dès maintenant pour en avoir ensuite !</p>`}
     </section>
     ${annee ? "" : `<section class="carte">
@@ -1143,6 +1144,49 @@ const DISPOSITION_ICONES = {
   5: { taille: 24, pos: [[.28, .28], [.72, .28], [.5, .5], [.28, .74], [.72, .74]] }
 };
 
+/* ---------- Couleurs du plan selon la vue choisie (État, Rotation, Arrosage) ---------- */
+const VUES_PLAN = { etat: "État", rotation: "Rotation", eau: "Arrosage" };
+const LEGENDES_PLAN = {
+  etat: { retard: ["#e07a5f", "Récolte en retard"], recolte: ["#e9b949", "À récolter"], bientot: ["#f0d48a", "Bientôt prêt"], pousse: ["#a7c98a", "En train de pousser"], perenne: ["#6f9e64", "Pérenne"] },
+  rotation: { fruits: ["#e48a6a", "Légumes-fruits"], feuilles: ["#9cc77a", "Feuilles et choux"], racines: ["#e3b66a", "Racines et bulbes"], legumineuses: ["#b6a3d8", "Légumineuses"], hors: ["#a9c3b8", "Hors rotation (vivaces, aromates, fleurs)"] },
+  eau: { fort: ["#4f86c6", "Beaucoup d'eau"], moyen: ["#8db8dd", "Arrosage moyen"], faible: ["#e2d3a8", "Peu d'eau"] }
+};
+const ORDRE_ETAT = ["retard", "recolte", "bientot", "pousse", "perenne"];
+function lireVuePlan() { try { const v = localStorage.getItem("potagerBretonVuePlan"); return LEGENDES_PLAN[v] ? v : "etat"; } catch (e) { return "etat"; } }
+function categoriePlan(parcelle, coord, contenu, mode) {
+  const plante = planteParId(contenu.planteId);
+  if (!plante) return null;
+  if (mode === "eau") return typeof besoinEau === "function" ? besoinEau(plante) : "moyen";
+  if (mode === "rotation") {
+    if (plante.categorie !== "legume" || ROTATION_IGNORED_FAMILIES.includes(plante.famille) || (typeof estPerenne === "function" && estPerenne(plante))) return "hors";
+    const g = typeof groupeRotation === "function" ? groupeRotation(plante.famille) : null;
+    return g ? g.id : "hors";
+  }
+  const inf = infosCulture(parcelle, coord, contenu);
+  const st = inf ? inf.statut : "en-place";
+  if (st === "retard") return "retard";
+  if (STATUTS_A_RECOLTER.includes(st)) return "recolte";
+  if (st === "bientot") return "bientot";
+  return typeof estPerenne === "function" && estPerenne(plante) ? "perenne" : "pousse";
+}
+// Catégories d'une case (une seule, la plus urgente, pour la vue État)
+function categoriesCase(parcelle, coord, mode) {
+  const cats = [...new Set(culturesDe(parcelle, coord).map(c => categoriePlan(parcelle, coord, c, mode)).filter(Boolean))];
+  if (mode === "etat" && cats.length) return [cats.sort((x, y) => ORDRE_ETAT.indexOf(x) - ORDRE_ETAT.indexOf(y))[0]];
+  return cats;
+}
+function couleursCase(parcelle, coord, mode) { return categoriesCase(parcelle, coord, mode).map(k => LEGENDES_PLAN[mode][k][0]); }
+function legendePlanHTML(mode) {
+  const presentes = new Set();
+  etat.parcelles.forEach(p => Object.keys(p.cases).filter(c => dansLimites(p, c)).forEach(c => categoriesCase(p, c, mode).forEach(k => presentes.add(k))));
+  const items = Object.entries(LEGENDES_PLAN[mode]).filter(([k]) => presentes.has(k));
+  const prot = new Set();
+  etat.parcelles.forEach(p => Object.keys(p.protections || {}).filter(c => dansLimites(p, c) && protectionDe(p, c)).forEach(c => prot.add(p.protections[c].type)));
+  return `<div class="legende legende-plan-vue">${items.map(([, [c, l]]) => `<span><span class="puce" style="background:${c}"></span>${esc(l)}</span>`).join("")}
+    <span><span class="puce puce-libre"></span>Libre</span>
+    ${[...prot].map(t => `<span>${PROTECTIONS[t].icone} ${esc(PROTECTIONS[t].label)}</span>`).join("")}</div>`;
+}
+
 function dessinerPlan(conteneur, { edition = false } = {}) {
   conteneur.innerHTML = "";
   if (!etat.parcelles.length) {
@@ -1191,6 +1235,7 @@ function dessinerPlan(conteneur, { edition = false } = {}) {
   };
 
   const statuts = statutsParCase();
+  const mode = lireVuePlan();
 
   etat.parcelles.forEach(parcelle => {
     const gx = (parcelle.posX + MARGE) * U;
@@ -1212,12 +1257,12 @@ function dessinerPlan(conteneur, { edition = false } = {}) {
           .forEach(([k, v]) => rect.setAttribute(k, v));
         const prot = protectionDe(parcelle, coord);
         rect.setAttribute("class", "plan-case" + (plantes.length ? " occupee" : "") + (prot ? " protegee prot-" + prot.type : ""));
-        if (plantes.length) rect.style.fill = remplissage(plantes.map(pl => familleDe(pl).color));
+        if (plantes.length) rect.style.fill = remplissage(couleursCase(parcelle, coord, mode));
         if (!edition) {
           rect.setAttribute("tabindex", "0");
           rect.setAttribute("role", "button");
           rect.setAttribute("aria-label", parcelle.nom + ", case " + (x + 1) + "-" + (y + 1) + (plantes.length ? " : " + plantes.map(pl => pl.nom).join(", ") : " : vide"));
-          const ouvrir = () => ouvrirEditeurCase(parcelle.id, x, y);
+          const ouvrir = () => ouvrirApercuCase(parcelle.id, x, y);
           rect.addEventListener("click", ouvrir);
           rect.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ouvrir(); } });
         }
@@ -1234,15 +1279,13 @@ function dessinerPlan(conteneur, { edition = false } = {}) {
 
         if (plantes.length) {
           const mise = DISPOSITION_ICONES[Math.min(plantes.length, 5)];
-          plantes.slice(0, 5).forEach((plante, i) => {
-            const t = document.createElementNS(NS, "text");
-            t.setAttribute("x", gx + x * U + mise.pos[i][0] * U);
-            t.setAttribute("y", gy + y * U + mise.pos[i][1] * U);
-            t.setAttribute("class", "plan-icone");
-            t.style.fontSize = mise.taille + "px";
-            t.textContent = iconePlante(plante);
-            g.appendChild(t);
-          });
+          const gi = document.createElementNS(NS, "g");
+          gi.setAttribute("class", "plan-icones");
+          gi.innerHTML = plantes.slice(0, 5).map((plante, i) => {
+            const t = mise.taille * 1.55, cx = gx + x * U + mise.pos[i][0] * U, cy = gy + y * U + mise.pos[i][1] * U;
+            return `<circle cx="${cx}" cy="${cy}" r="${t * 0.52}" class="plan-ico-fond"/>` + icoSVG(plante, cx - t / 2, cy - t / 2, t);
+          }).join("");
+          g.appendChild(gi);
           const statut = statuts[parcelle.id + "|" + coord];
           if (STATUTS_A_RECOLTER.includes(statut)) {
             const pastille = document.createElementNS(NS, "circle");
@@ -1399,14 +1442,14 @@ function rendreInstantane() {
     ${lignes.length ? lignes.map(([ic, titre, liste, classe]) => `
       <div class="inst-ligne">
         <div class="inst-titre">${ic} ${titre}</div>
-        <div class="chips">${liste.map(g => `<button class="chip${classe ? " chip-" + classe : ""}${g.statut === "retard" ? " chip-retard" : ""}" data-ouvrir="${g.parcelle.id}|${g.cases[0]}|${g.contenu.id}">${iconePlante(g.plante)} ${esc(nomCourt(g.plante))}</button>`).join("")}</div>
+        <div class="chips">${liste.map(g => `<button class="chip${classe ? " chip-" + classe : ""}${g.statut === "retard" ? " chip-retard" : ""}" data-ouvrir="${g.parcelle.id}|${g.cases[0]}|${g.contenu.id}">${ico(g.plante, "1.4em")} ${esc(nomCourt(g.plante))}</button>`).join("")}</div>
       </div>`).join("")
       : `<p class="vide">Ton potager est vide pour l'instant : commence par placer tes cultures sur le plan.</p>`}
     <div class="inst-pied"><span class="texte-doux petit">${esc(place)}</span><button class="btn-discret" id="inst-plan">Voir le plan →</button></div>`;
   zone.querySelectorAll("[data-ouvrir]").forEach(b => b.addEventListener("click", () => {
     const [pid, coord, cid] = b.dataset.ouvrir.split("|");
     const [x, y] = coord.split("-").map(Number);
-    ouvrirEditeurCase(pid, x, y, { editId: cid });
+    ouvrirApercuCase(pid, x, y);
   }));
   zone.querySelector("#inst-plan").addEventListener("click", () => allerA("plan"));
 }
@@ -1425,7 +1468,7 @@ function rendreBientot() {
     const p = planteParId(pr.planteId);
     const [, mm] = pr.mois.split("-").map(Number);
     const quand = positionMois(pr.mois) <= 0 ? "ce mois-ci" : "en " + nomMoisCle(pr.mois);
-    return `<div class="bientot-ligne"><span>${iconePlante(p)} <strong>${esc(nomCourt(p))}</strong></span><span class="texte-doux petit">${esc(verbeAction(p, mm).toLowerCase())} ${esc(quand)}</span></div>`;
+    return `<div class="bientot-ligne"><span>${ico(p, "1.4em")} <strong>${esc(nomCourt(p))}</strong></span><span class="texte-doux petit">${esc(verbeAction(p, mm).toLowerCase())} ${esc(quand)}</span></div>`;
   }).join("") + `<div class="inst-pied"><span></span><button class="btn-discret" id="bientot-annee">Mon année →</button></div>`;
   zone.querySelector("#bientot-annee").addEventListener("click", () => { ui.vueSaisons = "annee"; allerA("saisons"); });
 }
@@ -1536,7 +1579,7 @@ function rendreTachesDuMois() {
     ${infos && infos.detail ? `<details class="accordeon"><summary>Pourquoi ces gestes en Bretagne ?</summary><p>${esc(infos.detail)}</p></details>` : ""}
     ${idees.length ? `
       <details class="accordeon"><summary>Idées à semer ou planter ce mois-ci</summary>
-      <div class="chips">${idees.map(p => `<button class="chip" data-fiche="${p.id}">${iconePlante(p)} ${esc(p.nom)}</button>`).join("")}</div></details>` : ""}`;
+      <div class="chips">${idees.map(p => `<button class="chip" data-fiche="${p.id}">${ico(p, "1.4em")} ${esc(p.nom)}</button>`).join("")}</div></details>` : ""}`;
   brancherFiches(zone);
 }
 
@@ -1557,7 +1600,7 @@ function ligneCulture(c) {
   }
   return `
     <button class="ligne-culture" data-parcelle="${c.parcelle.id}" data-coord="${c.cases[0]}" data-cid="${c.contenu.id}">
-      <span class="ligne-icone" style="background:${familleDe(c.plante).color}">${iconePlante(c.plante)}</span>
+      <span class="ligne-icone">${ico(c.plante, 30)}</span>
       <span class="ligne-corps">
         <span class="ligne-titre">${esc(c.plante.nom)}<span class="ligne-lieu">${esc(c.parcelle.nom)}${n > 1 ? `, ${n} m²` : ""}</span></span>
         <span class="ligne-detail">${esc(detail)}${c.contenu.notes ? " — " + esc(c.contenu.notes) : ""}</span>
@@ -1589,8 +1632,10 @@ function rendrePlan() {
       </div>
       <p class="texte-doux petit">${ui.editionDisposition
         ? "Fais glisser les parcelles pour reproduire la disposition de ton jardin. Elles s'alignent tous les 50 cm."
-        : "Touche une case pour planter, récolter ou ajouter une note. Chaque case fait 1 m × 1 m."}</p>
+        : "Touche une case pour voir ce qu'elle contient. Chaque case fait 1 m × 1 m."}</p>
+      ${ui.editionDisposition ? "" : `<div class="voir-par"><span class="texte-doux petit">Voir par</span><div class="chips">${Object.entries(VUES_PLAN).map(([k, l]) => `<button class="chip${lireVuePlan() === k ? " actif" : ""}" data-vueplan="${k}" aria-pressed="${lireVuePlan() === k}">${l}</button>`).join("")}</div></div>`}
       <div id="plan-global" class="plan-zone"></div>
+      ${ui.editionDisposition ? "" : legendePlanHTML(lireVuePlan())}
     </section>
     <section class="carte">
       <div class="carte-titre"><h2>Détail des parcelles</h2></div>
@@ -1604,6 +1649,10 @@ function rendrePlan() {
     rendrePlan();
   });
   document.getElementById("btn-ajouter-parcelle").addEventListener("click", ajouterParcelle);
+  vue.querySelectorAll("[data-vueplan]").forEach(b => b.addEventListener("click", () => {
+    try { localStorage.setItem("potagerBretonVuePlan", b.dataset.vueplan); } catch (e) { /* rien */ }
+    const y = window.scrollY; rendrePlan(); window.scrollTo(0, y);
+  }));
 
   const zone = document.getElementById("liste-parcelles");
   if (!etat.parcelles.length) {
@@ -1611,6 +1660,7 @@ function rendrePlan() {
     return;
   }
   const statuts = statutsParCase();
+  const mode = lireVuePlan();
 
   zone.innerHTML = etat.parcelles.map(p => {
     let cases = "";
@@ -1629,16 +1679,16 @@ function rendrePlan() {
           cases += `<button class="case${classeProt}" ${lieu} aria-label="Case vide ${x + 1}-${y + 1}${prot ? ", " + esc(PROTECTIONS[prot.type].label) : ""}"><span class="case-vide">+</span>${badgeProt}</button>`;
         } else if (plantes.length === 1) {
           cases += `<button class="case occupee${classeProt}" ${lieu}
-               style="--famille:${familleDe(plantes[0]).color}" title="${esc(plantes[0].nom)}, planté le ${esc(formatDate(cs[0].datePlantation))}">
+               style="--famille:${couleursCase(p, coord, mode)[0]}" title="${esc(plantes[0].nom)}, planté le ${esc(formatDate(cs[0].datePlantation))}">
                ${pastille}${badgeProt}
-               <span class="case-icone">${iconePlante(plantes[0])}</span><span class="case-nom">${esc(nomCourt(plantes[0]))}</span>
+               <span class="case-icone">${ico(plantes[0], 34)}</span><span class="case-nom">${esc(nomCourt(plantes[0]))}</span>
              </button>`;
         } else {
           cases += `<button class="case occupee multi${classeProt}" ${lieu}
-               style="background:${fondDegrade(plantes.map(pl => familleDe(pl).color))}" title="${esc(plantes.map(pl => pl.nom).join(", "))}"
+               style="background:${fondDegrade(couleursCase(p, coord, mode))}" title="${esc(plantes.map(pl => pl.nom).join(", "))}"
                aria-label="Case ${x + 1}-${y + 1} : ${esc(plantes.map(pl => pl.nom).join(", "))}">
                ${pastille}${badgeProt}
-               <span class="case-icones">${plantes.slice(0, 5).map(pl => `<span>${iconePlante(pl)}</span>`).join("")}</span>
+               <span class="case-icones">${plantes.slice(0, 5).map(pl => `<span>${ico(pl, 22)}</span>`).join("")}</span>
              </button>`;
         }
       }
@@ -1654,14 +1704,12 @@ function rendrePlan() {
           <button class="btn-discret" data-modifier="${p.id}">Modifier</button>
         </div>
         <div class="grille-carres" style="grid-template-columns:repeat(${p.largeur}, minmax(30px, 64px))">${cases}</div>
-        ${familles.length ? `<div class="legende">${familles.map(f => `<span><span class="puce" style="background:${FAMILIES[f].color}"></span>${FAMILIES[f].label}</span>`).join("")}</div>` : ""}
-        ${(() => { const types = [...new Set(Object.keys(p.protections || {}).filter(c => dansLimites(p, c) && protectionDe(p, c)).map(c => p.protections[c].type))];
-          return types.length ? `<div class="legende">${types.map(t => `<span>${PROTECTIONS[t].icone} ${PROTECTIONS[t].label}</span>`).join("")}</div>` : ""; })()}
+
       </div>`;
   }).join("");
 
   zone.querySelectorAll(".case").forEach(b => b.addEventListener("click", () =>
-    ouvrirEditeurCase(b.dataset.parcelle, +b.dataset.x, +b.dataset.y)));
+    ouvrirApercuCase(b.dataset.parcelle, +b.dataset.x, +b.dataset.y)));
   zone.querySelectorAll("[data-modifier]").forEach(b => b.addEventListener("click", () =>
     ouvrirReglagesParcelle(b.dataset.modifier)));
 }
@@ -1792,7 +1840,7 @@ function ouvrirEditeurCase(parcelleId, x, y, { editId = null, recolteId = null, 
     const st = inf ? STATUTS[inf.statut] : null;
     return `
       <div class="culture-case${edite && edite.id === c.id ? " en-edition" : ""}">
-        <span class="ligne-icone" style="background:${familleDe(plante).color}">${iconePlante(plante)}</span>
+        <span class="ligne-icone">${ico(plante, 30)}</span>
         <div class="cc-corps">
           <div class="ligne-titre">${esc(plante.nom)}</div>
           <div class="ligne-detail">Planté le ${esc(formatDate(c.datePlantation))}${c.notes ? " — " + esc(c.notes) : ""}</div>
@@ -2035,7 +2083,7 @@ function ouvrirFichePlante(id, retour = null) {
   const amis = COMPAGNONS[p.id] ? [...COMPAGNONS[p.id].amis].map(i => planteParId(i).nom) : [];
   const ennemis = COMPAGNONS[p.id] ? [...COMPAGNONS[p.id].ennemis].map(i => planteParId(i).nom) : [];
   ouvrirFenetre(`
-    <h2>${iconePlante(p)} ${esc(p.nom)}</h2>
+    <h2 class="titre-ico">${ico(p, 40)} ${esc(p.nom)}</h2>
     <p class="meta-plante"><span class="tag-famille" style="background:${f.color}">${f.label}</span>
       ${esc(majuscule(p.exposition))}${p.espacementCm ? `, espacer d'environ ${p.espacementCm} cm` : ""}</p>
     ${bandeauMois(p)}
@@ -2171,7 +2219,7 @@ function rendreContenuSaisons() {
         <div class="cal-ligne cal-entete"><span class="cal-nom"></span><div class="bandeau-mois">${MOIS_INITIALES.map((l, i) => `<span class="cal-mois${i + 1 === m ? " courant" : ""}">${l}</span>`).join("")}</div></div>
         ${plantes.map(p => `
           <div class="cal-ligne">
-            <button class="cal-nom" data-fiche="${p.id}">${iconePlante(p)} ${esc(nomCourt(p))}</button>
+            <button class="cal-nom" data-fiche="${p.id}">${ico(p, "1.4em")} ${esc(nomCourt(p))}</button>
             ${bandeauMois(p, { entete: false })}
           </div>`).join("")}
       </div>` : `<p class="vide">Aucune plante ne correspond à ta recherche.</p>`}
@@ -2187,7 +2235,7 @@ function rendreContenuSaisons() {
     const actions = [p.moisSemis.includes(m) && "semis", p.moisPlantation.includes(m) && "plantation"].filter(Boolean);
     return `
       <button class="plante-fiche" data-fiche="${p.id}" style="--famille:${f.color}">
-        <span class="pf-titre">${iconePlante(p)} ${esc(p.nom)} <span class="tag-famille" style="background:${f.color}">${f.label}</span></span>
+        <span class="pf-titre">${ico(p, "1.4em")} ${esc(p.nom)} <span class="tag-famille" style="background:${f.color}">${f.label}</span></span>
         ${actions.length ? `<span class="pf-meta">${majuscule(actions.join(" ou "))} ce mois-ci, ${esc(p.exposition)}</span>` : `<span class="pf-meta">${esc(majuscule(p.exposition))}</span>`}
         ${p.conseilCourt ? `<span class="pf-conseil">${esc(p.conseilCourt)}</span>` : ""}
       </button>`;
@@ -2263,7 +2311,7 @@ function rendreJournal() {
             <div class="entree-corps">
               <div class="entree-date">${esc(formatDate(j.date))}</div>
               <div>${esc(j.texte)}</div>
-              ${j.planteId && planteParId(j.planteId) && j.type !== "recolte" ? `<span class="tag-info">${iconePlante(planteParId(j.planteId))} ${esc(nomCourt(planteParId(j.planteId)))}</span>` : ""}
+              ${j.planteId && planteParId(j.planteId) && j.type !== "recolte" ? `<span class="tag-info">${ico(planteParId(j.planteId), "1.4em")} ${esc(nomCourt(planteParId(j.planteId)))}</span>` : ""}
               ${j.photos && j.photos.length ? `<div class="photos-entree">${j.photos.map(id => `<button class="photo-mini" data-photo="${id}" data-entree="${j.id}" aria-label="Voir la photo"><img alt="" data-photo-img="${id}"></button>`).join("")}</div>` : ""}
             </div>
             <button class="btn-icone" data-suppr="${j.id}" aria-label="Supprimer cette entrée">✕</button>
@@ -2583,7 +2631,7 @@ function toast(message, { annuler } = {}) {
    Version de l'appli : vérification et mise à jour
    ============================================================ */
 
-const FICHIERS_APPLI = ["./", "index.html", "css/style.css", "js/app.js", "js/plants-data.js", "js/extras.js", "js/aide.js", "js/sync.js", "manifest.json", "sw.js"];
+const FICHIERS_APPLI = ["./", "index.html", "css/style.css", "js/app.js", "js/plants-data.js", "js/extras.js", "js/aide.js", "js/icones.js", "js/sync.js", "manifest.json", "sw.js"];
 
 async function verifierVersion() {
   ui.verifEnCours = true;

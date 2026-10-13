@@ -352,7 +352,7 @@ function rendreRotation(zone) {
       <div class="rot-conseil">
         <div class="rot-titre">Pour ${an + 1} : ${suivant.icone} ${suivant.label}</div>
         <p class="texte-doux petit">${esc(majuscule(suivant.note))}. ${aEviter.length ? `Évite d'y remettre ${esc(listeFr(aEviter.map(g => g.label.toLowerCase())))} (cultivés en ${dernier}).` : ""}</p>
-        <div class="chips">${exemples.map(pl => `<button class="chip" data-fiche="${pl.id}">${iconePlante(pl)} ${esc(nomCourt(pl))}</button>`).join("")}</div>
+        <div class="chips">${exemples.map(pl => `<button class="chip" data-fiche="${pl.id}">${ico(pl, "1.4em")} ${esc(nomCourt(pl))}</button>`).join("")}</div>
       </div>
     </section>`;
   });
@@ -416,7 +416,7 @@ function rendreFrise(zone) {
     const gauche = pct(l.debut), droite = pct(l.fin);
     const couleur = familleDe(l.plante).color;
     return `<button class="frise-ligne" data-ligne="${l.cle}">
-      <span class="frise-etiq">${iconePlante(l.plante)} ${esc(nomCourt(l.plante))}${l.n > 1 ? ` <small>×${l.n}</small>` : ""}</span>
+      <span class="frise-etiq">${ico(l.plante, "1.4em")} ${esc(nomCourt(l.plante))}${l.n > 1 ? ` <small>×${l.n}</small>` : ""}</span>
       <div class="frise-piste"><span class="frise-barre${l.projet ? " projet" : ""}" style="left:${gauche}%;width:${Math.max(droite - gauche, 1.2)}%;--couleur:${couleur}"></span>
       ${aujourdhuiPct !== null ? `<span class="frise-aujourdhui" style="left:${aujourdhuiPct}%"></span>` : ""}</div></button>`;
   };
@@ -511,7 +511,7 @@ function rendreGraines(zone) {
     const p = planteParId(g.planteId);
     const perime = g.peremption && g.peremption < an, bientot = g.peremption === an;
     return `<div class="graine">
-      <span class="graine-icone">${p ? iconePlante(p) : "🌰"}</span>
+      <span class="graine-icone">${p ? ico(p, "1.6em") : "🌰"}</span>
       <div class="graine-corps">
         <div class="ligne-titre">${esc(nomGraine(g))}${g.variete ? ` <span class="texte-doux">— ${esc(g.variete)}</span>` : ""}</div>
         <div class="ligne-detail">${[g.quantite, g.peremption ? "avant " + g.peremption : "", g.note].filter(Boolean).map(esc).join(" · ") || "&nbsp;"}</div>
@@ -539,7 +539,7 @@ function rendreGraines(zone) {
       <div class="carte-titre"><h2>Liste de courses</h2></div>
       ${autoLignes.length ? `<h3 class="sous-titre-section">Pour mon plan</h3>${autoLignes.map(pr => {
         const p = planteParId(pr.planteId);
-        return `<div class="course"><span>${iconePlante(p)} <strong>${esc(nomCourt(p))}</strong> <small class="texte-doux">prévu en ${esc(nomMoisCle(pr.mois))}${etat.graines.some(g => g.planteId === p.id) ? ", graines périmées" : ""}</small></span>
+        return `<div class="course"><span>${ico(p, "1.4em")} <strong>${esc(nomCourt(p))}</strong> <small class="texte-doux">prévu en ${esc(nomMoisCle(pr.mois))}${etat.graines.some(g => g.planteId === p.id) ? ", graines périmées" : ""}</small></span>
           <button class="btn-discret" data-jen="${p.id}">J'en ai</button></div>`;
       }).join("")}` : (etat.projets.some(pr => !pr.fait) ? `<p class="texte-doux petit">✓ Tu as des graines pour tout ce qui est dans ton plan.</p>` : `<p class="texte-doux petit">Ajoute des cultures à ton plan (onglet Saisons) : ce qui te manque apparaîtra ici.</p>`)}
       <h3 class="sous-titre-section">Mes autres achats</h3>
@@ -598,7 +598,7 @@ function carteMesPlantesHTML() {
       <p class="texte-doux petit">Ajoute une plante ou une variété absente de la base (rhubarbe rouge, physalis, cosmos…). Elle apparaît ensuite partout : plan, idées de saison, frise, graines.</p>
       ${etat.plantesPerso.length ? etat.plantesPerso.map(p => `
         <div class="plante-perso">
-          <span class="graine-icone">${iconePlante(p)}</span>
+          <span class="graine-icone">${ico(p, "1.4em")}</span>
           <div class="graine-corps"><div class="ligne-titre">${esc(p.nom)}</div>
             <div class="ligne-detail">${esc(CATEGORIES_NOMS[p.categorie])}, ${esc(familleDe(p).label)}</div></div>
           <div class="graine-actions">

@@ -1,8 +1,9 @@
 {
-  "version": "13",
+  "version": "14",
   "date": "2026-10-13",
   "nouveautes": [
-    "Nouvel accueil « Aujourd'hui au jardin » : le temps du jour, ce qu'il y a à faire cette semaine, ce qui est à récolter ou pousse en ce moment, et ce qui est prévu bientôt",
-    "Le plan complet reste dans l'onglet Plan"
+    "Plan : icônes dessinées pour chaque plante, plus parlantes que les émojis",
+    "Plan : « Voir par » État, Rotation ou Arrosage, avec une légende claire",
+    "Toucher une case ouvre un aperçu : ce qu'elle contient, où en est la culture, le geste du moment, ses photos ; ou des idées si elle est libre"
   ]
 }
