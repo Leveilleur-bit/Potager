@@ -10,7 +10,7 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "19";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const VERSION_APP = "20";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
 const DATE_VERSION_APP = "2026-10-12";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
@@ -1240,6 +1240,7 @@ function dessinerPlan(conteneur, { edition = false, echelle = null } = {}) {
 
   const statuts = statutsParCase();
   const mode = lireVuePlan();
+  const zonesBacs = [];
 
   // Sol en gazon, maison et boussole
   defs.innerHTML += motifsJardin(prefixe);
@@ -1272,17 +1273,31 @@ function dessinerPlan(conteneur, { edition = false, echelle = null } = {}) {
     fond.style.fill = `url(#${prefixe}${bord})`;
     g.appendChild(fond);
     const gx = ox + ep, gy = oy + ep;   // coin intérieur
+    // Terre du bac, d'un seul tenant (pas de cases dessinées)
+    const terre = document.createElementNS(NS, "rect");
+    Object.entries({ x: gx, y: gy, width: W * U - 2 * ep, height: H * U - 2 * ep, rx: Math.max(3, arrondi - ep), class: "plan-terre" })
+      .forEach(([k, v]) => terre.setAttribute(k, v));
+    terre.style.fill = `url(#${prefixe}terre)`;
+    g.appendChild(terre);
+    // Séparations discrètes entre les zones de culture
+    const seps = [];
+    for (let i = 1; i < parcelle.largeur; i++) seps.push(`M${gx + i * cw} ${gy + 6} V${gy + parcelle.hauteur * ch - 6}`);
+    for (let i = 1; i < parcelle.hauteur; i++) seps.push(`M${gx + 6} ${gy + i * ch} H${gx + parcelle.largeur * cw - 6}`);
+    if (seps.length) { const sp = document.createElementNS(NS, "path"); sp.setAttribute("d", seps.join(" ")); sp.setAttribute("class", "plan-separation"); g.appendChild(sp); }
+    zonesBacs.push({ p: parcelle, x0: ox, y0: oy, x1: ox + W * U, y1: oy + H * U, ep, bord });
 
     for (let y = 0; y < parcelle.hauteur; y++) {
       for (let x = 0; x < parcelle.largeur; x++) {
         const coord = x + "-" + y;
         const plantes = culturesDe(parcelle, coord).map(c => planteParId(c.planteId));
         const rect = document.createElementNS(NS, "rect");
-        Object.entries({ x: gx + x * cw + 3, y: gy + y * ch + 3, width: cw - 6, height: ch - 6, rx: 7 })
+        Object.entries({ x: gx + x * cw + 2, y: gy + y * ch + 2, width: cw - 4, height: ch - 4, rx: Math.min(cw, ch) * 0.45 })
           .forEach(([k, v]) => rect.setAttribute(k, v));
         const prot = protectionDe(parcelle, coord);
-        rect.setAttribute("class", "plan-case" + (plantes.length ? " occupee" : "") + (prot ? " protegee prot-" + prot.type : ""));
-        if (plantes.length) rect.style.fill = remplissage(couleursCase(parcelle, coord, mode));
+        rect.setAttribute("class", "plan-case plan-zone-culture" + (plantes.length ? " occupee" : "") + (prot ? " protegee prot-" + prot.type : ""));
+        rect.style.fill = plantes.length ? remplissage(couleursCase(parcelle, coord, mode))
+          : prot ? (prot.type === "paillage" ? `url(#${prefixe}paille)` : prot.type === "voile" ? "rgba(240,244,246,.55)" : "rgba(120,150,170,.45)")
+          : "transparent";
         if (!edition) {
           rect.setAttribute("tabindex", "0");
           rect.setAttribute("role", "button");
@@ -1293,7 +1308,7 @@ function dessinerPlan(conteneur, { edition = false, echelle = null } = {}) {
         }
         g.appendChild(rect);
 
-        if (prot) {
+        if (prot && prot.type !== "paillage") {
           const badge = document.createElementNS(NS, "text");
           badge.setAttribute("x", gx + x * cw + 18);
           badge.setAttribute("y", gy + (y + 1) * ch - 14);
@@ -1335,6 +1350,10 @@ function dessinerPlan(conteneur, { edition = false, echelle = null } = {}) {
     if (edition) activerGlisser(svg, g, parcelle);
     svg.appendChild(g);
   });
+
+  // Bacs accolés de même bordure (ex. le L du retour et de la bande basse) : un seul massif
+  const joints = jointsBacs(zonesBacs);
+  if (joints) { const gj = document.createElementNS(NS, "g"); gj.setAttribute("class", "plan-joints"); gj.innerHTML = joints.replace(/TERRE/g, `url(#${prefixe}terre)`); svg.insertBefore(gj, svg.querySelector(".plan-parcelle") ? null : null); svg.appendChild(gj); }
 
   // Arbres (au-dessus des bacs, sans gêner le toucher des cases)
   const arbres = arbresSVG(jardin, MARGE, MARGE_HAUT);

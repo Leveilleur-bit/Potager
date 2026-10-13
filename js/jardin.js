@@ -73,6 +73,8 @@ function motifsJardin(prefixe) {
     + pat("pierre-seche", 44, 28, `<rect width="44" height="28" fill="#8a7a5c"/><rect x="1" y="1" width="20" height="12" rx="4" fill="#d9c8a0"/><rect x="23" y="1" width="20" height="12" rx="5" fill="#cbb88f"/><rect x="-10" y="15" width="20" height="12" rx="5" fill="#e3d4ae"/><rect x="12" y="15" width="21" height="12" rx="4" fill="#d4c398"/><rect x="35" y="15" width="20" height="12" rx="5" fill="#e3d4ae"/>`)
     + pat("parpaing", 40, 20, `<rect width="40" height="20" fill="#9c9c96"/><rect x="1" y="1" width="38" height="18" rx="1.5" fill="#d3d3ce"/><rect x="7" y="6" width="9" height="8" rx="2" fill="#b4b4ae"/><rect x="24" y="6" width="9" height="8" rx="2" fill="#b4b4ae"/>`)
     + pat("blocs", 48, 24, `<rect width="48" height="24" fill="#8f8b80"/><rect x="1" y="1" width="30" height="10" rx="2" fill="#cfc8b6"/><rect x="33" y="1" width="14" height="10" rx="2" fill="#c3bba7"/><rect x="1" y="13" width="14" height="10" rx="2" fill="#c3bba7"/><rect x="17" y="13" width="30" height="10" rx="2" fill="#d7d0bf"/>`)
+    + pat("terre", 26, 26, `<rect width="26" height="26" fill="#6f5238"/><circle cx="5" cy="6" r="1.6" fill="#5c4330"/><circle cx="17" cy="4" r="1.2" fill="#82634a"/><circle cx="12" cy="15" r="1.8" fill="#5c4330"/><circle cx="22" cy="19" r="1.3" fill="#82634a"/><circle cx="4" cy="21" r="1.1" fill="#86684d"/>`)
+    + pat("paille", 22, 22, `<rect width="22" height="22" fill="#b98f4c"/><path d="M2 6 L12 3 M8 14 L20 9 M1 19 L11 16 M13 21 L21 17 M15 5 L21 2" stroke="#d9b56c" stroke-width="2" stroke-linecap="round"/><path d="M4 11 L10 9 M14 15 L19 13" stroke="#9c7438" stroke-width="1.6" stroke-linecap="round"/>`)
     + pat("ardoise", 18, 12, `<rect width="18" height="12" fill="#5d6873"/><path d="M0 11.5 H18 M9 0 V6 M0 6 H18 M4 6 V12 M13 6 V12" stroke="#4a545e" stroke-width="1"/>`);
 }
 
@@ -224,3 +226,27 @@ function fermerPlanPlein() {
 }
 document.addEventListener("keydown", e => { if (e.key === "Escape" && document.getElementById("plan-plein") && !document.getElementById("fenetre").open) fermerPlanPlein(); });
 window.addEventListener("hashchange", fermerPlanPlein);
+
+// Murets communs : quand deux bacs de même bordure se touchent, on efface le mur entre eux
+function jointsBacs(zones) {
+  const pres = (a, b) => Math.abs(a - b) < 6;
+  let s = "";
+  for (let i = 0; i < zones.length; i++) for (let k = i + 1; k < zones.length; k++) {
+    const A = zones[i], B = zones[k];
+    if (A.bord !== B.bord) continue;
+    const ep = Math.max(A.ep, B.ep);
+    // côte à côte horizontalement
+    if (pres(A.x1, B.x0) || pres(B.x1, A.x0)) {
+      const x = pres(A.x1, B.x0) ? A.x1 : B.x1;
+      const y0 = Math.max(A.y0, B.y0) + ep, y1 = Math.min(A.y1, B.y1) - ep;
+      if (y1 > y0) s += `<rect x="${x - ep - 1}" y="${y0}" width="${ep * 2 + 2}" height="${y1 - y0}" fill="TERRE"/>`;
+    }
+    // l'un au-dessus de l'autre
+    if (pres(A.y1, B.y0) || pres(B.y1, A.y0)) {
+      const y = pres(A.y1, B.y0) ? A.y1 : B.y1;
+      const x0 = Math.max(A.x0, B.x0) + ep, x1 = Math.min(A.x1, B.x1) - ep;
+      if (x1 > x0) s += `<rect x="${x0}" y="${y - ep - 1}" width="${x1 - x0}" height="${ep * 2 + 2}" fill="TERRE"/>`;
+    }
+  }
+  return s;
+}

@@ -1321,3 +1321,11 @@ body.sans-defilement { overflow: hidden; }
 .plan-arbres { pointer-events: none; }
 .plan-arbre { opacity: 0.78; }
 .plan-arbre-fruitier { opacity: 0.7; }
+
+/* Bacs d'un seul tenant */
+.plan-terre { pointer-events: none; }
+.plan-separation { stroke: #f4ead6; stroke-opacity: .28; stroke-width: 2; stroke-dasharray: 5 7; fill: none; pointer-events: none; }
+.plan-zone-culture { stroke: none !important; }
+.plan-zone-culture.occupee { opacity: .5; }
+.plan-zone-culture:hover { filter: brightness(1.12); }
+.plan-joints { pointer-events: none; }

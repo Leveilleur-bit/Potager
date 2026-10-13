@@ -1,9 +1,9 @@
 {
-  "version": "19",
+  "version": "20",
   "date": "2026-10-13",
   "nouveautes": [
-    "Plan aux vraies dimensions (taille réelle de chaque bac, réglable dans « Modifier » la parcelle)",
-    "Épaisseur réelle des bordures, et les arbres du jardin (palmier, cordyline, cerisier)",
-    "Disposition de ton second croquis proposée en un toucher"
+    "Plan plus fidèle : chaque bac est dessiné d'un seul tenant à ses vraies dimensions, sans quadrillage",
+    "Le retour et la bande basse forment un seul massif en L",
+    "Paillage montré par une texture de paille"
   ]
 }
