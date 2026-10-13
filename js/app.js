@@ -10,7 +10,7 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "16";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const VERSION_APP = "17";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
 const DATE_VERSION_APP = "2026-10-12";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
@@ -1925,12 +1925,18 @@ function ouvrirEditeurCase(parcelleId, x, y, { editId = null, recolteId = null, 
     <div id="ec-form" class="ec-form">
       <h3 class="sous-titre-section">${edite ? "Modifier : " + esc(planteParId(edite.planteId).nom) : cultures.length ? "Ajouter une autre culture" : "Ajouter une culture"}</h3>
       ${pleine ? `<p class="vide">Cette case est pleine (${MAX_CULTURES_PAR_CASE} cultures au maximum). Termine une culture pour faire de la place.</p>` : `
-      <label for="ec-plante">Plante</label>
-      <select id="ec-plante">
+      <label for="ec-choisir">Plante</label>
+      <button type="button" class="choix-plante" id="ec-choisir" aria-expanded="false"></button>
+      <select id="ec-plante" class="sr-only" tabindex="-1" aria-hidden="true">
         <option value="">— Choisir une plante —</option>
         <optgroup label="De saison en ${MOIS_NOMS[m - 1]}">${deSaison.map(option).join("")}</optgroup>
         <optgroup label="Autres plantes">${autres.map(option).join("")}</optgroup>
       </select>
+      <div class="selecteur-plantes" id="ec-selecteur" hidden>
+        <input type="search" id="ec-recherche" placeholder="Chercher (ex. ail, lavande…)" autocomplete="off">
+        <div class="chips" id="ec-cats">${[["toutes", "Tout"], ["legume", "Légumes"], ["fruit", "Fruits"], ["aromate", "Aromates"], ["fleur", "Fleurs"]].map(([k, l], i) => `<button type="button" class="chip${i === 0 ? " actif" : ""}" data-cat-sel="${k}">${l}</button>`).join("")}</div>
+        <div id="ec-grille"></div>
+      </div>
       <div class="ligne-champs deux">
         <div>
           <label for="ec-date">Semé ou planté le</label>
@@ -2012,6 +2018,41 @@ function ouvrirEditeurCase(parcelleId, x, y, { editId = null, recolteId = null, 
 
     const sel = fen.querySelector("#ec-plante");
     if (sel) {
+      // Sélecteur visuel des plantes (icônes dessinées, recherche, catégories)
+      const bouton = fen.querySelector("#ec-choisir"), panneau = fen.querySelector("#ec-selecteur");
+      const grille = fen.querySelector("#ec-grille"), recherche = fen.querySelector("#ec-recherche");
+      let categorie = "toutes";
+      const sansAccent = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      const majBouton = () => {
+        const p = planteParId(sel.value);
+        bouton.innerHTML = p ? `${ico(p, 34)}<span><strong>${esc(p.nom)}</strong><small>Toucher pour changer</small></span>` : `<span class="choix-vide">🌱 Choisir une plante…</span>`;
+      };
+      const tuile = p => `<button type="button" class="tuile-plante${sel.value === p.id ? " choisie" : ""}" data-choix="${p.id}"${dejaLa.has(p.id) ? " disabled" : ""}>${ico(p, 40)}<span>${esc(nomCourt(p))}</span></button>`;
+      const dessinerGrille = () => {
+        const q = sansAccent(recherche.value.trim());
+        const ok = p => (categorie === "toutes" || p.categorie === categorie) && (!q || sansAccent(p.nom).includes(q));
+        const a1 = deSaison.filter(ok), a2 = autres.filter(ok);
+        grille.innerHTML = (a1.length ? `<h4 class="grille-titre">De saison en ${MOIS_NOMS[m - 1]}</h4><div class="grille-plantes">${a1.map(tuile).join("")}</div>` : "")
+          + (a2.length ? `<h4 class="grille-titre">Autres plantes</h4><div class="grille-plantes">${a2.map(tuile).join("")}</div>` : "")
+          || `<p class="vide">Aucune plante ne correspond. Tu peux en créer une dans Réglages → Mes plantes.</p>`;
+        grille.querySelectorAll("[data-choix]").forEach(b => b.addEventListener("click", () => {
+          sel.value = b.dataset.choix;
+          sel.dispatchEvent(new Event("change"));
+          ouvrir(false);
+        }));
+      };
+      const ouvrir = oui => { panneau.hidden = !oui; bouton.setAttribute("aria-expanded", String(oui)); if (oui) { recherche.value = ""; dessinerGrille(); } };
+      bouton.addEventListener("click", () => ouvrir(panneau.hidden));
+      recherche.addEventListener("input", dessinerGrille);
+      fen.querySelectorAll("[data-cat-sel]").forEach(c => c.addEventListener("click", () => {
+        categorie = c.dataset.catSel;
+        fen.querySelectorAll("[data-cat-sel]").forEach(x => x.classList.toggle("actif", x === c));
+        dessinerGrille();
+      }));
+      sel.addEventListener("change", majBouton);
+      majBouton();
+      if (!sel.value) ouvrir(true);
+
       const dateInput = fen.querySelector("#ec-date");
       const aide = fen.querySelector("#ec-aide");
       const ligneToutes = fen.querySelector("#ec-toutes-ligne");

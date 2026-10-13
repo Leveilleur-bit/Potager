@@ -14,7 +14,7 @@
    nouvelle version.
    ============================================================ */
 
-const CACHE_VERSION = "v16";
+const CACHE_VERSION = "v17";
 const CACHE_NAME = "potager-breton-" + CACHE_VERSION;
 
 const FICHIERS_A_METTRE_EN_CACHE = [

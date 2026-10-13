@@ -1,8 +1,7 @@
 {
-  "version": "16",
+  "version": "17",
   "date": "2026-10-13",
   "nouveautes": [
-    "Plan plus grand : bord à bord sur téléphone, moins de marges",
-    "Bouton « Agrandir » : le plan en plein écran, avec zoom et déplacement au doigt"
+    "Choix de la plante avec les nouvelles icônes : recherche, catégories, plantes de saison en premier"
   ]
 }
