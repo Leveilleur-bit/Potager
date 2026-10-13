@@ -1,9 +1,8 @@
 {
-  "version": "20",
+  "version": "21",
   "date": "2026-10-13",
   "nouveautes": [
-    "Plan plus fidèle : chaque bac est dessiné d'un seul tenant à ses vraies dimensions, sans quadrillage",
-    "Le retour et la bande basse forment un seul massif en L",
-    "Paillage montré par une texture de paille"
+    "Plan encore plus fidèle : la bande haute et la bande médiane sont en biais, comme dans ton jardin (2,5 m d'allée à gauche, 1 m à droite)",
+    "50 cm entre le bout de la bande médiane et le retour"
   ]
 }

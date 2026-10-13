@@ -10,7 +10,7 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "20";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const VERSION_APP = "21";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
 const DATE_VERSION_APP = "2026-10-12";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
@@ -1198,9 +1198,12 @@ function dessinerPlan(conteneur, { edition = false, echelle = null } = {}) {
   const MARGE = 0.35 + marges.gauche, MARGE_HAUT = 0.6 + marges.haut;
   // Le nom d'une parcelle étroite peut dépasser sa largeur : on l'estime
   const finNom = p => p.posX + MARGE + (p.nom.length * 16) / U;
-  const maxXp = Math.max(...etat.parcelles.map(p => p.posX + dimsReelles(p).W));
-  const maxX = Math.max(...etat.parcelles.map(p => p.posX + dimsReelles(p).W + MARGE));
-  const maxY = Math.max(...etat.parcelles.map(p => p.posY + dimsReelles(p).H));
+  // Les parcelles peuvent être en biais : on prend l'enveloppe de leurs coins
+  const coins = etat.parcelles.flatMap(coinsParcelle);
+  const decX = Math.max(0, -Math.min(...coins.map(c => c[0]))), decY = Math.max(0, -Math.min(...coins.map(c => c[1])));
+  const maxXp = Math.max(...coins.map(c => c[0])) + decX;
+  const maxX = maxXp + MARGE;
+  const maxY = Math.max(...coins.map(c => c[1])) + decY;
   const largeur = (maxX + 0.35 + marges.droite + (jardin.maison.startsWith("haut") || jardin.maison.startsWith("bas") ? Math.max(0, 5 - maxXp) : 0)) * U;
   const hauteur = (maxY + 0.4 + MARGE_HAUT + marges.bas) * U;
 
@@ -1253,14 +1256,18 @@ function dessinerPlan(conteneur, { edition = false, echelle = null } = {}) {
   svg.appendChild(decor);
 
   etat.parcelles.forEach(parcelle => {
+    const gExt = document.createElementNS(NS, "g");
+    gExt.setAttribute("class", "plan-parcelle");
     const g = document.createElementNS(NS, "g");
-    g.setAttribute("class", "plan-parcelle");
+    const angle = Number(parcelle.angle) || 0;
+    if (angle) g.setAttribute("transform", `rotate(${angle} ${(parcelle.posX + decX + MARGE) * U} ${(parcelle.posY + decY + MARGE_HAUT) * U})`);
+    gExt.appendChild(g);
     {
 
     const bord = bordureDe(parcelle), ep = epaisseurBordure(parcelle);
     const { W, H } = dimsReelles(parcelle);
     // La taille réelle comprend la bordure : les cases occupent l'intérieur
-    const ox = (parcelle.posX + MARGE) * U, oy = (parcelle.posY + MARGE_HAUT) * U;
+    const ox = (parcelle.posX + decX + MARGE) * U, oy = (parcelle.posY + decY + MARGE_HAUT) * U;
     const cw = (W * U - 2 * ep) / parcelle.largeur, ch = (H * U - 2 * ep) / parcelle.hauteur, cmin = Math.min(cw, ch);
     const arrondi = bord === "pierre-seche" ? 26 : 6;
     const ombre = document.createElementNS(NS, "rect");
@@ -1284,7 +1291,7 @@ function dessinerPlan(conteneur, { edition = false, echelle = null } = {}) {
     for (let i = 1; i < parcelle.largeur; i++) seps.push(`M${gx + i * cw} ${gy + 6} V${gy + parcelle.hauteur * ch - 6}`);
     for (let i = 1; i < parcelle.hauteur; i++) seps.push(`M${gx + 6} ${gy + i * ch} H${gx + parcelle.largeur * cw - 6}`);
     if (seps.length) { const sp = document.createElementNS(NS, "path"); sp.setAttribute("d", seps.join(" ")); sp.setAttribute("class", "plan-separation"); g.appendChild(sp); }
-    zonesBacs.push({ p: parcelle, x0: ox, y0: oy, x1: ox + W * U, y1: oy + H * U, ep, bord });
+    if (!angle) zonesBacs.push({ p: parcelle, x0: ox, y0: oy, x1: ox + W * U, y1: oy + H * U, ep, bord });
 
     for (let y = 0; y < parcelle.hauteur; y++) {
       for (let x = 0; x < parcelle.largeur; x++) {
@@ -1339,7 +1346,7 @@ function dessinerPlan(conteneur, { edition = false, echelle = null } = {}) {
 
     }
     // Nom de la parcelle : une étiquette posée sur la bordure, en haut à gauche
-    const ox = (parcelle.posX + MARGE) * U, oy = (parcelle.posY + MARGE_HAUT) * U;
+    const ox = (parcelle.posX + decX + MARGE) * U, oy = (parcelle.posY + decY + MARGE_HAUT) * U;
     const etiq = document.createElementNS(NS, "g");
     etiq.setAttribute("class", "plan-etiquette");
     const largeurTexte = parcelle.nom.length * 11.5 + 22;
@@ -1347,8 +1354,8 @@ function dessinerPlan(conteneur, { edition = false, echelle = null } = {}) {
     etiq.innerHTML = `<rect x="${ex}" y="${oy - 24}" width="${largeurTexte}" height="28" rx="14" class="plan-etiquette-fond"/><text x="${ex + 11}" y="${oy - 10}" class="plan-nom">${esc(parcelle.nom)}</text>`;
     g.appendChild(etiq);
 
-    if (edition) activerGlisser(svg, g, parcelle);
-    svg.appendChild(g);
+    if (edition) activerGlisser(svg, gExt, parcelle);
+    svg.appendChild(gExt);
   });
 
   // Bacs accolés de même bordure (ex. le L du retour et de la bande basse) : un seul massif
@@ -1356,7 +1363,7 @@ function dessinerPlan(conteneur, { edition = false, echelle = null } = {}) {
   if (joints) { const gj = document.createElementNS(NS, "g"); gj.setAttribute("class", "plan-joints"); gj.innerHTML = joints.replace(/TERRE/g, `url(#${prefixe}terre)`); svg.insertBefore(gj, svg.querySelector(".plan-parcelle") ? null : null); svg.appendChild(gj); }
 
   // Arbres (au-dessus des bacs, sans gêner le toucher des cases)
-  const arbres = arbresSVG(jardin, MARGE, MARGE_HAUT);
+  const arbres = arbresSVG(jardin, MARGE + decX, MARGE_HAUT + decY);
   if (arbres) { const ga = document.createElementNS(NS, "g"); ga.setAttribute("class", "plan-arbres"); ga.innerHTML = arbres; svg.appendChild(ga); }
 
   conteneur.appendChild(svg);
@@ -1684,7 +1691,7 @@ function rendrePlan() {
       <p class="texte-doux petit">${ui.editionDisposition
         ? "Fais glisser les parcelles pour reproduire la disposition de ton jardin. Elles s'alignent tous les 50 cm."
         : "Touche une case pour voir ce qu'elle contient."}</p>
-      ${!ui.editionDisposition && croquisDisponible() ? `<div class="croquis-propose">✏️ J'ai préparé ton plan avec les mesures de ton croquis : vraies dimensions des bacs, bordures (bois noir de 5 cm, pierre sèche de 20 cm), le palmier, la cordyline et le cerisier, sud en haut.
+      ${!ui.editionDisposition && croquisDisponible() ? `<div class="croquis-propose">✏️ J'ai préparé ton plan avec les mesures de ton dernier croquis : vraies dimensions, bande haute et bande médiane en biais (2,5 m d'allée à gauche, 1 m à droite), bordures, palmier, cordyline et cerisier.
         <div class="actions-fenetre"><button class="btn" id="croquis-oui">Appliquer</button><button class="btn-discret" id="croquis-non">Non merci</button></div></div>` : ""}
       ${ui.editionDisposition ? "" : `<div class="voir-par"><span class="texte-doux petit">Voir par</span><div class="chips">${Object.entries(VUES_PLAN).map(([k, l]) => `<button class="chip${lireVuePlan() === k ? " actif" : ""}" data-vueplan="${k}" aria-pressed="${lireVuePlan() === k}">${l}</button>`).join("")}</div></div>`}
       <div class="plan-cadre"><div id="plan-global" class="plan-zone"></div>
