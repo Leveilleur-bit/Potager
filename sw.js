@@ -14,7 +14,7 @@
    nouvelle version.
    ============================================================ */
 
-const CACHE_VERSION = "v17";
+const CACHE_VERSION = "v18";
 const CACHE_NAME = "potager-breton-" + CACHE_VERSION;
 
 const FICHIERS_A_METTRE_EN_CACHE = [
@@ -62,6 +62,7 @@ self.addEventListener("fetch", (event) => {
   if (url.origin === self.location.origin && url.pathname.endsWith("/version.json")) return;
 
   // Les échanges avec Google (connexion, Drive) ne passent jamais par le cache
+  if (url.hostname === "api.github.com") return;   // synchronisation : jamais en cache
   if (/(^|\.)(googleapis|google|gstatic)\.com$/.test(url.hostname) && !/fonts\.(googleapis|gstatic)\.com$/.test(url.hostname)) return;
 
   const estMemeOrigine = url.origin === self.location.origin;

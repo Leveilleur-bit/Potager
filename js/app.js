@@ -10,7 +10,7 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "17";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const VERSION_APP = "18";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
 const DATE_VERSION_APP = "2026-10-12";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
@@ -2340,6 +2340,52 @@ function photosDeCulture(planteId, parcelleId, max = 6) {
   return liste.slice(0, max);
 }
 
+// Journal : regroupé par mois (repliables) ; les mises en place d'un même jour sont réunies
+function entreeJournalHTML(j) {
+  return `
+          <div class="entree-journal">
+            <span class="entree-icone" aria-hidden="true">${(TYPES_JOURNAL[j.type] || TYPES_JOURNAL.note).icone}</span>
+            <div class="entree-corps">
+              <div class="entree-date">${esc(formatDate(j.date))}</div>
+              <div>${esc(j.texte)}</div>
+              ${j.planteId && planteParId(j.planteId) && j.type !== "recolte" ? `<span class="tag-info">${ico(planteParId(j.planteId), "1.4em")} ${esc(nomCourt(planteParId(j.planteId)))}</span>` : ""}
+              ${j.photos && j.photos.length ? `<div class="photos-entree">${j.photos.map(id => `<button class="photo-mini" data-photo="${id}" data-entree="${j.id}" aria-label="Voir la photo"><img alt="" data-photo-img="${id}"></button>`).join("")}</div>` : ""}
+            </div>
+            <button class="btn-icone" data-suppr="${j.id}" aria-label="Supprimer cette entrée">✕</button>
+          </div>`;
+}
+function listeJournalHTML() {
+  if (!etat.journal.length) return `<p class="vide">Ton journal est vide. Note tes observations, réussites et essais : ils te serviront la saison prochaine.</p>`;
+  const triees = etat.journal.slice().sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const mois = new Map();
+  triees.forEach(j => { const k = (j.date || "").slice(0, 7) || "sans-date"; if (!mois.has(k)) mois.set(k, []); mois.get(k).push(j); });
+  const courant = cleMois(new Date().getFullYear(), moisCourant());
+  const premier = [...mois.keys()][0];
+  return [...mois.entries()].map(([k, liste]) => {
+    const [an, m] = k.split("-").map(Number);
+    const titre = m ? majuscule(MOIS_NOMS[m - 1]) + " " + an : "Sans date";
+    // Mises en place sans photo d'un même jour : une seule ligne dépliable
+    const blocs = [];
+    for (let i = 0; i < liste.length; i++) {
+      const j = liste[i];
+      if (j.type === "semis" && !(j.photos || []).length) {
+        const lot = [j];
+        while (i + 1 < liste.length && liste[i + 1].type === "semis" && liste[i + 1].date === j.date && !(liste[i + 1].photos || []).length) lot.push(liste[++i]);
+        if (lot.length >= 3) {
+          const noms = lot.map(x => planteParId(x.planteId)).filter(Boolean).map(p => nomCourt(p));
+          blocs.push(`<details class="lot-journal"><summary><span class="entree-icone" aria-hidden="true">🌱</span><span><span class="entree-date">${esc(formatDate(j.date))}</span><br>${lot.length} cultures mises en place${noms.length ? " : " + esc(listeFr(noms.slice(0, 4))) + (noms.length > 4 ? "…" : "") : ""}</span></summary>${lot.map(entreeJournalHTML).join("")}</details>`);
+          continue;
+        }
+        lot.forEach(x => blocs.push(entreeJournalHTML(x)));
+        continue;
+      }
+      blocs.push(entreeJournalHTML(j));
+    }
+    const ouvert = ui.ouverts.has("j" + k) || (!ui.ouverts.has("jferme" + k) && (k === courant || k === premier));
+    return `<details class="mois-journal" data-k="j${k}"${ouvert ? " open" : ""}><summary><span>${esc(titre)}</span><span class="texte-doux petit">${liste.length} entrée${liste.length > 1 ? "s" : ""}</span></summary>${blocs.join("")}</details>`;
+  }).join("");
+}
+
 /* ============================================================
    Onglet Journal & conseils
    ============================================================ */
@@ -2381,19 +2427,7 @@ function rendreJournal() {
       <div class="photos-entree" id="jn-apercu"></div>
       <p class="texte-doux petit">📷 Les photos servent à suivre l'évolution d'une culture, à garder une trace d'un problème (pour le reconnaître ou le montrer) et à comparer d'une année à l'autre. Elles restent dans ton journal et sur la fiche de la plante ; touche « Ajouter au journal » pour les enregistrer.</p>
       <button class="btn" id="jn-ajouter">Ajouter au journal</button>
-      <div class="journal-liste">
-        ${etat.journal.length ? etat.journal.slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")).map(j => `
-          <div class="entree-journal">
-            <span class="entree-icone" aria-hidden="true">${(TYPES_JOURNAL[j.type] || TYPES_JOURNAL.note).icone}</span>
-            <div class="entree-corps">
-              <div class="entree-date">${esc(formatDate(j.date))}</div>
-              <div>${esc(j.texte)}</div>
-              ${j.planteId && planteParId(j.planteId) && j.type !== "recolte" ? `<span class="tag-info">${ico(planteParId(j.planteId), "1.4em")} ${esc(nomCourt(planteParId(j.planteId)))}</span>` : ""}
-              ${j.photos && j.photos.length ? `<div class="photos-entree">${j.photos.map(id => `<button class="photo-mini" data-photo="${id}" data-entree="${j.id}" aria-label="Voir la photo"><img alt="" data-photo-img="${id}"></button>`).join("")}</div>` : ""}
-            </div>
-            <button class="btn-icone" data-suppr="${j.id}" aria-label="Supprimer cette entrée">✕</button>
-          </div>`).join("") : `<p class="vide">Ton journal est vide. Note tes observations, réussites et essais : ils te serviront la saison prochaine.</p>`}
-      </div>
+      <div class="journal-liste">${listeJournalHTML()}</div>
     </section>
     ${Object.keys(totaux).length ? `
     <section class="carte">
@@ -2452,6 +2486,10 @@ function rendreJournal() {
     toast("Ajouté au journal.");
   });
   chargerMiniatures(vue);
+  vue.querySelectorAll("details.mois-journal").forEach(d => d.addEventListener("toggle", () => {
+    const k = d.dataset.k.slice(1);
+    if (d.open) { ui.ouverts.add("j" + k); ui.ouverts.delete("jferme" + k); } else { ui.ouverts.delete("j" + k); ui.ouverts.add("jferme" + k); }
+  }));
   vue.querySelectorAll("[data-photo]").forEach(b => b.addEventListener("click", () => ouvrirPhoto(b.dataset.photo, b.dataset.entree)));
   vue.querySelectorAll("[data-suppr]").forEach(b => b.addEventListener("click", () => {
     avecAnnulation("Entrée supprimée.", () => { etat.journal = etat.journal.filter(j => j.id !== b.dataset.suppr); });

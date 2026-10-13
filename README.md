@@ -50,10 +50,7 @@ héberger gratuitement sur **GitHub Pages**.
 - **Photos** dans le journal (stockées sur l'appareil, incluses dans les
   sauvegardes).
 - **Mes plantes** (Réglages) : ajoute tes propres plantes et variétés.
-- **Synchronisation Google Drive** (Réglages) : le même potager sur
-  téléphone et ordinateur. Les données sont copiées dans le dossier caché
-  de l'appli sur ton Drive. Demande une configuration unique d'environ
-  10 minutes (identifiant client Google gratuit, guide dans l'appli).
+- **Synchronisation GitHub** : les données vont dans un dépôt GitHub **privé** (ex. `potager-donnees`, fichier `potager-breton.json` + dossier `photos/`). Jeton « fine-grained » limité à ce dépôt, permission *Contents : Read and write*. Synchro automatique à l'ouverture et après chaque changement.
 - **Sauvegarde manuelle** par fichier (menu de partage du téléphone), et
   **export des rappels vers l'agenda** (fichier .ics).
 - **Cultures** : chaque culture avec sa barre de progression et sa fenêtre

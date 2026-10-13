@@ -1,7 +1,8 @@
 {
-  "version": "17",
+  "version": "18",
   "date": "2026-10-13",
   "nouveautes": [
-    "Choix de la plante avec les nouvelles icônes : recherche, catégories, plantes de saison en premier"
+    "Synchronisation par GitHub (dépôt privé) à la place de Google Drive : plus simple à configurer, automatique à l'ouverture et après chaque changement",
+    "Journal regroupé par mois, repliable ; les mises en place d'un même jour tiennent sur une ligne"
   ]
 }
