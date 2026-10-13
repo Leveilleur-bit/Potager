@@ -10,7 +10,7 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "23";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const VERSION_APP = "24";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
 const DATE_VERSION_APP = "2026-10-12";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
@@ -1422,7 +1422,7 @@ function rendreAccueil() {
   vue.innerHTML = `
     <section class="carte carte-jour" id="jour"></section>
     <section class="carte">
-      <div class="carte-titre"><h2>Cette semaine au jardin</h2></div>
+      <div class="carte-titre"><h2>🧑‍🌾 Le coach</h2><span class="carte-sous-titre">cette semaine</span></div>
       <div id="coach"></div>
     </section>
     <section class="carte">
