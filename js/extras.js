@@ -100,22 +100,26 @@ function chargerMiniatures(zone) {
   });
 }
 
-function ouvrirPhoto(id, entreeId) {
+function ouvrirPhoto(id, entreeId, retour = null) {
+  const entree = etat.journal.find(j => j.id === entreeId);
+  const pl = entree && entree.planteId ? planteParId(entree.planteId) : null;
   ouvrirFenetre(`
-    <h2>Photo</h2>
+    <h2>Photo${pl ? " : " + esc(nomCourt(pl)) : ""}</h2>
     <div class="photo-grande"><img id="ph-img" alt="Photo du journal"></div>
+    ${entree ? `<p class="texte-doux petit">${esc(formatDate(entree.date))} · ${esc(entree.texte || "")}</p>` : ""}
     <div class="actions-fenetre">
-      <button class="btn-discret" id="ph-fermer">Fermer</button>
+      <button class="btn-discret" id="ph-fermer">${retour ? "Retour" : "Fermer"}</button>
       <button class="btn-danger" id="ph-suppr">Retirer cette photo</button>
     </div>`, fen => {
     PhotosDB.lire(id).then(blob => { if (blob) fen.querySelector("#ph-img").src = URL.createObjectURL(blob); });
-    fen.querySelector("#ph-fermer").addEventListener("click", fermerFenetre);
+    fen.querySelector("#ph-fermer").addEventListener("click", retour || fermerFenetre);
     fen.querySelector("#ph-suppr").addEventListener("click", () => {
       fermerFenetre();
       avecAnnulation("Photo retirée.", () => {
         const e = etat.journal.find(j => j.id === entreeId);
         if (e) e.photos = e.photos.filter(p => p !== id);
       });
+      if (retour) setTimeout(retour, 0);
     });
   });
 }

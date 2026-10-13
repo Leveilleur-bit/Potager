@@ -1215,3 +1215,7 @@ button.frise-ligne:hover { background: var(--papier); }
 .diag-ligne.ok > span { color: var(--mousse-fonce); }
 .diag-ligne.ko > span { color: var(--alerte); }
 .diag-ligne.ko strong { color: var(--alerte); }
+
+.cc-actions .bouton-fichier { cursor: pointer; }
+#jn-apercu:empty { display: none; }
+#jn-apercu { margin: 0.4rem 0; }

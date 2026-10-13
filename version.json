@@ -1,12 +1,9 @@
 {
-  "version": "11",
+  "version": "12",
   "date": "2026-10-13",
   "nouveautes": [
-    "Plantes pérennes : âge affiché et soins du mois (asperges, fraisiers, framboisiers, aromatiques…), avec conseil de renouvellement",
-    "Nouvel onglet « Santé » : maladies et ravageurs courants en Bretagne, à surveiller selon tes cultures",
-    "Arrosage et météo : le coach tient compte de la pluie récente et annoncée, de la chaleur et des gros orages",
-    "« Refaire comme l'an dernier » dans Mon année, avec conseil de rotation",
-    "Thème clair/sombre et taille du texte réglables (Réglages → Apparence)",
-    "Synchro : bouton « Vérifier la configuration » qui explique ce qui manque"
+    "Photos : bouton 📷 Photo directement sur chaque culture (éditeur de case), rattachée à la plante",
+    "Les photos s'affichent aussi sur la fiche de la plante, pour comparer d'une année à l'autre",
+    "Journal : choix de la culture concernée, aperçu des photos avant d'enregistrer, explication de leur rôle"
   ]
 }

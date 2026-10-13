@@ -10,7 +10,7 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "11";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const VERSION_APP = "12";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
 const DATE_VERSION_APP = "2026-10-12";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
@@ -1716,11 +1716,13 @@ function ouvrirEditeurCase(parcelleId, x, y, { editId = null, recolteId = null, 
         <div class="cc-corps">
           <div class="ligne-titre">${esc(plante.nom)}</div>
           <div class="ligne-detail">Planté le ${esc(formatDate(c.datePlantation))}${c.notes ? " — " + esc(c.notes) : ""}</div>
+          ${(() => { const ph = photosDeCulture(c.planteId, parcelle.id); return ph.length ? `<div class="photos-entree">${ph.map(p => `<button class="photo-mini" data-photo="${p.id}" data-entree="${p.entree}" aria-label="Voir la photo du ${esc(formatDate(p.date))}"><img alt="" data-photo-img="${p.id}"></button>`).join("")}</div>` : ""; })()}
           ${inf && inf.progression !== null ? `<span class="progression" aria-hidden="true"><span style="width:${Math.round(inf.progression * 100)}%"></span></span>` : ""}
           ${st ? `<span class="etat ${st.classe}">${st.texte}</span>` : ""}
         </div>
         <div class="cc-actions">
           <button class="btn-discret" data-act="edit" data-cid="${c.id}">Modifier</button>
+          <label class="btn-discret bouton-fichier" title="Prendre une photo de suivi de ${esc(plante.nom)}">📷 Photo<input type="file" accept="image/*" data-photo-culture="${c.id}" hidden></label>
           <button class="btn-discret" data-act="recolte" data-cid="${c.id}" aria-label="Noter une récolte de ${esc(plante.nom)}">🧺 Récolte</button>
           <button class="btn-discret" data-act="fin" data-cid="${c.id}" aria-label="Fin de culture : ${esc(plante.nom)}">Fin de culture</button>
         </div>
@@ -1794,6 +1796,25 @@ function ouvrirEditeurCase(parcelleId, x, y, { editId = null, recolteId = null, 
       const cur = protectionDe(parcelle, coord);
       if (cur && cur.type === type) avecAnnulation("Protection retirée.", () => definirProtection(parcelle, coord, null));
       else avecAnnulation(`${PROTECTIONS[type].label} noté sur la case.`, () => definirProtection(parcelle, coord, type));
+    }));
+
+    // Photos de suivi : elles vont dans le journal, rattachées à cette culture
+    chargerMiniatures(fen);
+    fen.querySelectorAll("[data-photo]").forEach(b => b.addEventListener("click", () =>
+      ouvrirPhoto(b.dataset.photo, b.dataset.entree, () => rouvrir({ editId: edite ? edite.id : null }))));
+    fen.querySelectorAll("[data-photo-culture]").forEach(inp => inp.addEventListener("change", async () => {
+      const c = cultures.find(k => k.id === inp.dataset.photoCulture);
+      const fichiers = [...inp.files].slice(0, 6);
+      if (!c || !fichiers.length) return;
+      const pl = planteParId(c.planteId);
+      const photos = [];
+      for (const f of fichiers) { try { photos.push(await enregistrerPhoto(f)); } catch (e) { toast("Une photo n'a pas pu être enregistrée."); } }
+      if (!photos.length) return;
+      etat.journal.unshift({ id: creerId(), date: isoLocal(), type: "note", planteId: c.planteId, parcelleId: parcelle.id,
+        texte: `Suivi : ${pl.nom} (${parcelle.nom})`, photos });
+      sauvegarder();
+      toast(`Photo ajoutée au suivi de ${nomCourt(pl)} (visible aussi dans le Journal).`);
+      rouvrir({ editId: edite ? edite.id : null });
     }));
 
     // Actions sur chaque culture de la case
@@ -1943,8 +1964,12 @@ function ouvrirFichePlante(id, retour = null) {
     ${p.conseilDetail ? `<p class="texte-doux">${esc(p.conseilDetail)}</p>` : ""}
     ${amis.length ? `<p><strong>Bons voisins :</strong> ${esc(listeFr(amis))}.</p>` : ""}
     ${ennemis.length ? `<p><strong>À éloigner :</strong> ${esc(listeFr(ennemis))}.</p>` : ""}
+    ${(() => { const ph = photosDeCulture(p.id, null, 12); return ph.length ? `<h3 class="sous-titre-section">Tes photos de ${esc(nomCourt(p).toLowerCase())}</h3><div class="photos-entree">${ph.map(x => `<button class="photo-mini" data-photo="${x.id}" data-entree="${x.entree}" aria-label="Voir la photo du ${esc(formatDate(x.date))}"><img alt="" data-photo-img="${x.id}"></button>`).join("")}</div>` : ""; })()}
     <div class="actions-fenetre"><button class="btn-discret" id="fp-fermer">${retour ? "Retour" : "Fermer"}</button></div>`, fen => {
     fen.querySelector("#fp-fermer").addEventListener("click", retour || fermerFenetre);
+    chargerMiniatures(fen);
+    fen.querySelectorAll("[data-photo]").forEach(b => b.addEventListener("click", () =>
+      ouvrirPhoto(b.dataset.photo, b.dataset.entree, () => ouvrirFichePlante(id, retour))));
   });
 }
 
@@ -2099,6 +2124,17 @@ function rendreContenuSaisons() {
   brancherFiches(zone);
 }
 
+// Photos du journal rattachées à une culture (les plus récentes d'abord)
+function photosDeCulture(planteId, parcelleId, max = 6) {
+  const liste = [];
+  etat.journal.slice().sort((x, y) => (y.date || "").localeCompare(x.date || "")).forEach(j => {
+    if (j.planteId !== planteId || !(j.photos || []).length) return;
+    if (parcelleId && j.parcelleId && j.parcelleId !== parcelleId) return;
+    j.photos.forEach(id => liste.push({ id, entree: j.id, date: j.date }));
+  });
+  return liste.slice(0, max);
+}
+
 /* ============================================================
    Onglet Journal & conseils
    ============================================================ */
@@ -2127,11 +2163,18 @@ function rendreJournal() {
       </div>
       <label for="jn-texte">Ce que tu as observé ou fait</label>
       <textarea id="jn-texte" rows="2" placeholder="ex. Les limaces ont attaqué les jeunes salades : essayer un voile la prochaine fois."></textarea>
+      <label for="jn-plante">Culture concernée (facultatif)</label>
+      <select id="jn-plante"><option value="">— Aucune en particulier —</option>${(() => {
+        const ids = [...new Set(listerCultures().map(c => c.plante.id))];
+        return ids.map(id => planteParId(id)).sort((p, q) => p.nom.localeCompare(q.nom, "fr")).map(p => `<option value="${p.id}">${iconePlante(p)} ${esc(p.nom)}</option>`).join("");
+      })()}</select>
       <div class="ligne-photo">
         <label class="btn-discret bouton-fichier">📷 Ajouter des photos
           <input type="file" id="jn-photo" accept="image/*" multiple hidden></label>
         <span class="petit texte-doux" id="jn-photo-info"></span>
       </div>
+      <div class="photos-entree" id="jn-apercu"></div>
+      <p class="texte-doux petit">📷 Les photos servent à suivre l'évolution d'une culture, à garder une trace d'un problème (pour le reconnaître ou le montrer) et à comparer d'une année à l'autre. Elles restent dans ton journal et sur la fiche de la plante ; touche « Ajouter au journal » pour les enregistrer.</p>
       <button class="btn" id="jn-ajouter">Ajouter au journal</button>
       <div class="journal-liste">
         ${etat.journal.length ? etat.journal.slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")).map(j => `
@@ -2140,6 +2183,7 @@ function rendreJournal() {
             <div class="entree-corps">
               <div class="entree-date">${esc(formatDate(j.date))}</div>
               <div>${esc(j.texte)}</div>
+              ${j.planteId && planteParId(j.planteId) && j.type !== "recolte" ? `<span class="tag-info">${iconePlante(planteParId(j.planteId))} ${esc(nomCourt(planteParId(j.planteId)))}</span>` : ""}
               ${j.photos && j.photos.length ? `<div class="photos-entree">${j.photos.map(id => `<button class="photo-mini" data-photo="${id}" data-entree="${j.id}" aria-label="Voir la photo"><img alt="" data-photo-img="${id}"></button>`).join("")}</div>` : ""}
             </div>
             <button class="btn-icone" data-suppr="${j.id}" aria-label="Supprimer cette entrée">✕</button>
@@ -2176,7 +2220,12 @@ function rendreJournal() {
   let fichiersPhotos = [];
   vue.querySelector("#jn-photo").addEventListener("change", e => {
     fichiersPhotos = [...e.target.files].slice(0, 6);
-    vue.querySelector("#jn-photo-info").textContent = fichiersPhotos.length ? fichiersPhotos.length + " photo" + (fichiersPhotos.length > 1 ? "s" : "") + " prête" + (fichiersPhotos.length > 1 ? "s" : "") : "";
+    vue.querySelector("#jn-photo-info").textContent = fichiersPhotos.length ? "✓ " + fichiersPhotos.length + " photo" + (fichiersPhotos.length > 1 ? "s" : "") + " choisie" + (fichiersPhotos.length > 1 ? "s" : "") + " : touche « Ajouter au journal »" : "";
+    const apercu = vue.querySelector("#jn-apercu");
+    apercu.innerHTML = fichiersPhotos.map(() => `<span class="photo-mini"><img alt="Aperçu"></span>`).join("");
+    apercu.querySelectorAll("img").forEach((img, i) => { img.src = URL.createObjectURL(fichiersPhotos[i]); });
+    const bj = vue.querySelector("#jn-ajouter");
+    bj.textContent = fichiersPhotos.length ? "Ajouter au journal avec " + (fichiersPhotos.length > 1 ? "les photos" : "la photo") : "Ajouter au journal";
   });
   vue.querySelector("#jn-ajouter").addEventListener("click", async () => {
     const texte = vue.querySelector("#jn-texte").value.trim();
@@ -2189,7 +2238,10 @@ function rendreJournal() {
     for (const f of fichiersPhotos) {
       try { photos.push(await enregistrerPhoto(f)); } catch (e) { toast("Une photo n'a pas pu être enregistrée."); }
     }
-    etat.journal.unshift({ id: creerId(), date, type, texte: texte || "Photo", photos });
+    const planteId = vue.querySelector("#jn-plante").value || null;
+    const entree = { id: creerId(), date, type, texte: texte || "Photo", photos };
+    if (planteId) entree.planteId = planteId;
+    etat.journal.unshift(entree);
     sauvegarder();
     rendreJournal();
     toast("Ajouté au journal.");
