@@ -455,7 +455,7 @@ textarea { resize: vertical; }
 .plan-svg {
   width: 100%;
   height: auto;
-  max-height: min(62vh, 460px);
+  max-height: 78vh;
   display: block;
   background:
     radial-gradient(circle at 20% 30%, rgba(95, 138, 79, 0.10), transparent 40%),
@@ -1276,3 +1276,17 @@ button.frise-ligne:hover { background: var(--papier); }
 .plan-etiquette .plan-nom { font-size: 21px; fill: #26331f; dominant-baseline: central; }
 :root[data-theme="sombre"] .plan-etiquette-fond { fill: #1b2217; }
 :root[data-theme="sombre"] .plan-etiquette .plan-nom { fill: #e4edd6; }
+
+/* Plan plus grand : bord à bord sur téléphone, et plein écran zoomable */
+.plan-cadre { position: relative; }
+@media (max-width: 759px) { .plan-cadre .plan-zone { margin: 0 -0.7rem; } .plan-cadre .plan-svg { border-radius: 8px; } }
+.btn-agrandir { position: absolute; right: 8px; bottom: 8px; border: 0; border-radius: 99px; padding: 0.4rem 0.8rem; font: 600 0.85rem var(--font-corps); background: rgba(255, 253, 246, 0.92); color: #26331f; box-shadow: 0 1px 4px rgba(0,0,0,.25); cursor: pointer; }
+.plan-plein { position: fixed; inset: 0; z-index: 60; background: var(--papier); display: flex; flex-direction: column; }
+.pp-barre { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; padding: 0.6rem 0.9rem; padding-top: max(0.6rem, env(safe-area-inset-top)); background: var(--carte-fond); box-shadow: var(--ombre-legere); }
+.pp-barre strong { font-family: var(--font-titre); font-size: 1.1rem; color: var(--titre); }
+.pp-actions { display: flex; gap: 0.4rem; }
+.pp-actions .btn-discret { min-width: 2.6rem; font-size: 1.2rem; font-weight: 700; }
+.pp-zone { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding: 0.6rem; }
+.pp-zone .plan-svg { max-height: none; max-width: none; }
+.pp-aide { margin: 0; padding: 0.5rem 0.9rem calc(0.5rem + env(safe-area-inset-bottom)); font-size: 0.82rem; color: var(--encre-douce); background: var(--carte-fond); }
+body.sans-defilement { overflow: hidden; }

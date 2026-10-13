@@ -10,7 +10,7 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "15";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const VERSION_APP = "16";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
 const DATE_VERSION_APP = "2026-10-12";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
@@ -1187,7 +1187,7 @@ function legendePlanHTML(mode) {
     ${[...prot].map(t => `<span>${PROTECTIONS[t].icone} ${esc(PROTECTIONS[t].label)}</span>`).join("")}</div>`;
 }
 
-function dessinerPlan(conteneur, { edition = false } = {}) {
+function dessinerPlan(conteneur, { edition = false, echelle = null } = {}) {
   conteneur.innerHTML = "";
   if (!etat.parcelles.length) {
     conteneur.innerHTML = `<p class="vide">Ajoute une parcelle pour voir apparaître le plan de ton potager.</p>`;
@@ -1195,19 +1195,20 @@ function dessinerPlan(conteneur, { edition = false } = {}) {
   }
   const jardin = reglagesJardin();
   const marges = margesMaison(jardin.maison);
-  const MARGE = 0.5 + marges.gauche, MARGE_HAUT = 0.85 + marges.haut;
+  const MARGE = 0.35 + marges.gauche, MARGE_HAUT = 0.6 + marges.haut;
   // Le nom d'une parcelle étroite peut dépasser sa largeur : on l'estime
   const finNom = p => p.posX + MARGE + (p.nom.length * 16) / U;
   const maxXp = Math.max(...etat.parcelles.map(p => p.posX + p.largeur));
-  const maxX = Math.max(...etat.parcelles.map(p => Math.max(p.posX + p.largeur + MARGE, finNom(p))));
+  const maxX = Math.max(...etat.parcelles.map(p => p.posX + p.largeur + MARGE));
   const maxY = Math.max(...etat.parcelles.map(p => p.posY + p.hauteur));
-  const largeur = (maxX + 0.5 + marges.droite + (jardin.maison.startsWith("haut") || jardin.maison.startsWith("bas") ? Math.max(0, 5 - maxXp) : 0)) * U;
-  const hauteur = (maxY + 0.6 + MARGE_HAUT + marges.bas) * U;
+  const largeur = (maxX + 0.35 + marges.droite + (jardin.maison.startsWith("haut") || jardin.maison.startsWith("bas") ? Math.max(0, 5 - maxXp) : 0)) * U;
+  const hauteur = (maxY + 0.4 + MARGE_HAUT + marges.bas) * U;
 
   const NS = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(NS, "svg");
   svg.setAttribute("viewBox", `0 0 ${largeur} ${hauteur}`);
-  svg.setAttribute("class", "plan-svg" + (edition ? " en-edition" : ""));
+  svg.setAttribute("class", "plan-svg" + (edition ? " en-edition" : "") + (echelle ? " plan-grand" : ""));
+  if (echelle) { svg.style.width = Math.round(largeur / U * echelle) + "px"; svg.style.height = Math.round(hauteur / U * echelle) + "px"; }
   svg.setAttribute("role", "group");
   svg.setAttribute("aria-label", "Plan du potager");
 
@@ -1319,8 +1320,9 @@ function dessinerPlan(conteneur, { edition = false } = {}) {
     // Nom de la parcelle : une étiquette posée sur la bordure, en haut à gauche
     const etiq = document.createElementNS(NS, "g");
     etiq.setAttribute("class", "plan-etiquette");
-    const largeurTexte = parcelle.nom.length * 12.5 + 22;
-    etiq.innerHTML = `<rect x="${gx - 4}" y="${gy - 30}" width="${largeurTexte}" height="30" rx="15" class="plan-etiquette-fond"/><text x="${gx + 7}" y="${gy - 15}" class="plan-nom">${esc(parcelle.nom)}</text>`;
+    const largeurTexte = parcelle.nom.length * 11.5 + 22;
+    const ex = Math.max(8, Math.min(gx - 4, largeur - largeurTexte - 8));
+    etiq.innerHTML = `<rect x="${ex}" y="${gy - 30}" width="${largeurTexte}" height="30" rx="15" class="plan-etiquette-fond"/><text x="${ex + 11}" y="${gy - 15}" class="plan-nom">${esc(parcelle.nom)}</text>`;
     g.appendChild(etiq);
 
     if (edition) activerGlisser(svg, g, parcelle);
@@ -1655,7 +1657,8 @@ function rendrePlan() {
       ${!ui.editionDisposition && croquisDisponible() ? `<div class="croquis-propose">✏️ J'ai préparé ton plan d'après ton croquis : bandes placées comme chez toi, bordures (bois noir, pierre sèche, blocs, parpaings), maison au nord et sud en haut.
         <div class="actions-fenetre"><button class="btn" id="croquis-oui">Appliquer</button><button class="btn-discret" id="croquis-non">Non merci</button></div></div>` : ""}
       ${ui.editionDisposition ? "" : `<div class="voir-par"><span class="texte-doux petit">Voir par</span><div class="chips">${Object.entries(VUES_PLAN).map(([k, l]) => `<button class="chip${lireVuePlan() === k ? " actif" : ""}" data-vueplan="${k}" aria-pressed="${lireVuePlan() === k}">${l}</button>`).join("")}</div></div>`}
-      <div id="plan-global" class="plan-zone"></div>
+      <div class="plan-cadre"><div id="plan-global" class="plan-zone"></div>
+        ${ui.editionDisposition ? "" : `<button class="btn-agrandir" id="btn-agrandir" aria-label="Agrandir le plan">⤢ Agrandir</button>`}</div>
       ${ui.editionDisposition ? "" : legendePlanHTML(lireVuePlan())}
       ${ui.editionDisposition ? "" : `<button class="btn-discret" id="btn-jardin" style="margin-top:0.6rem">🧭 Orientation, maison et bordures</button>`}
     </section>
@@ -1674,6 +1677,9 @@ function rendrePlan() {
   const bo = vue.querySelector("#croquis-oui"), bn = vue.querySelector("#croquis-non");
   if (bo) bo.addEventListener("click", appliquerCroquis);
   if (bn) bn.addEventListener("click", refuserCroquis);
+  const ba = vue.querySelector("#btn-agrandir");
+  if (ba) ba.addEventListener("click", ouvrirPlanPlein);
+  rafraichirPlanPlein();
   const bj = vue.querySelector("#btn-jardin");
   if (bj) bj.addEventListener("click", ouvrirReglagesJardin);
   vue.querySelectorAll("[data-vueplan]").forEach(b => b.addEventListener("click", () => {

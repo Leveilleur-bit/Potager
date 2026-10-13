@@ -136,3 +136,41 @@ function refuserCroquis() {
   sauvegarder();
   rendre();
 }
+
+/* ---------- Plan en plein écran, zoomable ---------- */
+const ZOOMS_PLAN = [70, 95, 125, 160, 200];
+function ouvrirPlanPlein() {
+  if (document.getElementById("plan-plein")) return;
+  if (ui.zoomPlan == null) ui.zoomPlan = 1;
+  const d = document.createElement("div");
+  d.id = "plan-plein";
+  d.className = "plan-plein";
+  d.innerHTML = `<div class="pp-barre"><strong>Mon jardin</strong>
+      <div class="pp-actions"><button class="btn-discret" id="pp-moins" aria-label="Dézoomer">−</button><button class="btn-discret" id="pp-plus" aria-label="Zoomer">+</button><button class="btn" id="pp-fermer">Fermer</button></div></div>
+    <div class="pp-zone" id="pp-zone"></div>
+    <p class="pp-aide">Fais glisser pour te déplacer, touche une case pour la voir. Tourne ton téléphone pour voir plus large.</p>`;
+  document.body.appendChild(d);
+  document.body.classList.add("sans-defilement");
+  d.querySelector("#pp-fermer").addEventListener("click", fermerPlanPlein);
+  d.querySelector("#pp-moins").addEventListener("click", () => { ui.zoomPlan = Math.max(0, ui.zoomPlan - 1); rafraichirPlanPlein(); });
+  d.querySelector("#pp-plus").addEventListener("click", () => { ui.zoomPlan = Math.min(ZOOMS_PLAN.length - 1, ui.zoomPlan + 1); rafraichirPlanPlein(); });
+  rafraichirPlanPlein();
+}
+function rafraichirPlanPlein() {
+  const zone = document.getElementById("pp-zone");
+  if (!zone) return;
+  const avant = { x: zone.scrollLeft, y: zone.scrollTop };
+  // au premier affichage, le plan remplit la largeur de l'écran
+  if (ui.zoomPlan === 1 && !zone.dataset.init) {
+    zone.dataset.init = "1";
+  }
+  dessinerPlan(zone, { echelle: ZOOMS_PLAN[ui.zoomPlan] });
+  zone.scrollLeft = avant.x; zone.scrollTop = avant.y;
+}
+function fermerPlanPlein() {
+  const d = document.getElementById("plan-plein");
+  if (d) d.remove();
+  document.body.classList.remove("sans-defilement");
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape" && document.getElementById("plan-plein") && !document.getElementById("fenetre").open) fermerPlanPlein(); });
+window.addEventListener("hashchange", fermerPlanPlein);

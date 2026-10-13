@@ -1,9 +1,8 @@
 {
-  "version": "15",
+  "version": "16",
   "date": "2026-10-13",
   "nouveautes": [
-    "Plan « vrai jardin » : gazon, maison, boussole (où est le sud) et bordures des bacs (bois noir, pierre sèche, blocs, parpaings)",
-    "Disposition de ton croquis proposée en un toucher",
-    "Bouton « Orientation, maison et bordures » sous le plan ; bordure aussi réglable dans chaque parcelle"
+    "Plan plus grand : bord à bord sur téléphone, moins de marges",
+    "Bouton « Agrandir » : le plan en plein écran, avec zoom et déplacement au doigt"
   ]
 }
