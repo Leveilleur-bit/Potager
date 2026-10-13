@@ -1,9 +1,9 @@
 {
-  "version": "14",
+  "version": "15",
   "date": "2026-10-13",
   "nouveautes": [
-    "Plan : icônes dessinées pour chaque plante, plus parlantes que les émojis",
-    "Plan : « Voir par » État, Rotation ou Arrosage, avec une légende claire",
-    "Toucher une case ouvre un aperçu : ce qu'elle contient, où en est la culture, le geste du moment, ses photos ; ou des idées si elle est libre"
+    "Plan « vrai jardin » : gazon, maison, boussole (où est le sud) et bordures des bacs (bois noir, pierre sèche, blocs, parpaings)",
+    "Disposition de ton croquis proposée en un toucher",
+    "Bouton « Orientation, maison et bordures » sous le plan ; bordure aussi réglable dans chaque parcelle"
   ]
 }

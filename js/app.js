@@ -10,7 +10,7 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "14";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const VERSION_APP = "15";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
 const DATE_VERSION_APP = "2026-10-12";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
@@ -1193,13 +1193,16 @@ function dessinerPlan(conteneur, { edition = false } = {}) {
     conteneur.innerHTML = `<p class="vide">Ajoute une parcelle pour voir apparaître le plan de ton potager.</p>`;
     return;
   }
-  const MARGE = 0.5, MARGE_HAUT = 0.75;
+  const jardin = reglagesJardin();
+  const marges = margesMaison(jardin.maison);
+  const MARGE = 0.5 + marges.gauche, MARGE_HAUT = 0.85 + marges.haut;
   // Le nom d'une parcelle étroite peut dépasser sa largeur : on l'estime
   const finNom = p => p.posX + MARGE + (p.nom.length * 16) / U;
+  const maxXp = Math.max(...etat.parcelles.map(p => p.posX + p.largeur));
   const maxX = Math.max(...etat.parcelles.map(p => Math.max(p.posX + p.largeur + MARGE, finNom(p))));
   const maxY = Math.max(...etat.parcelles.map(p => p.posY + p.hauteur));
-  const largeur = (maxX + MARGE) * U;
-  const hauteur = (maxY + MARGE + MARGE_HAUT) * U;
+  const largeur = (maxX + 0.5 + marges.droite + (jardin.maison.startsWith("haut") || jardin.maison.startsWith("bas") ? Math.max(0, 5 - maxXp) : 0)) * U;
+  const hauteur = (maxY + 0.6 + MARGE_HAUT + marges.bas) * U;
 
   const NS = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(NS, "svg");
@@ -1237,15 +1240,31 @@ function dessinerPlan(conteneur, { edition = false } = {}) {
   const statuts = statutsParCase();
   const mode = lireVuePlan();
 
+  // Sol en gazon, maison et boussole
+  defs.innerHTML += motifsJardin(prefixe);
+  const zone = { x0: (MARGE - 0.35) * U, y0: (MARGE_HAUT - 0.55) * U, x1: (maxXp + MARGE + 0.35) * U, y1: (maxY + MARGE_HAUT + 0.35) * U };
+  const decor = document.createElementNS(NS, "g");
+  decor.setAttribute("class", "plan-decor");
+  decor.innerHTML = `<rect x="0" y="0" width="${largeur}" height="${hauteur}" rx="14" fill="url(#${prefixe}gazon)" class="plan-sol"/>`
+    + (jardin.maison !== "aucune" ? maisonSVG(jardin.maison, prefixe, zone) : "")
+    + (jardin.sud ? boussoleSVG(jardin.sud, largeur - 44, 44) : "");
+  svg.appendChild(decor);
+
   etat.parcelles.forEach(parcelle => {
     const gx = (parcelle.posX + MARGE) * U;
     const gy = (parcelle.posY + MARGE_HAUT) * U;
     const g = document.createElementNS(NS, "g");
     g.setAttribute("class", "plan-parcelle");
 
+    const bord = bordureDe(parcelle), ep = 13;
+    const ombre = document.createElementNS(NS, "rect");
+    Object.entries({ x: gx - ep + 4, y: gy - ep + 7, width: parcelle.largeur * U + ep * 2, height: parcelle.hauteur * U + ep * 2, rx: bord === "pierre-seche" ? 34 : 9, class: "plan-ombre" })
+      .forEach(([k, v]) => ombre.setAttribute(k, v));
+    g.appendChild(ombre);
     const fond = document.createElementNS(NS, "rect");
-    Object.entries({ x: gx - 6, y: gy - 6, width: parcelle.largeur * U + 12, height: parcelle.hauteur * U + 12, rx: 10, class: "plan-bordure" })
+    Object.entries({ x: gx - ep, y: gy - ep, width: parcelle.largeur * U + ep * 2, height: parcelle.hauteur * U + ep * 2, rx: bord === "pierre-seche" ? 34 : 9, class: "plan-bordure bord-" + bord })
       .forEach(([k, v]) => fond.setAttribute(k, v));
+    fond.style.fill = `url(#${prefixe}${bord})`;
     g.appendChild(fond);
 
     for (let y = 0; y < parcelle.hauteur; y++) {
@@ -1297,12 +1316,12 @@ function dessinerPlan(conteneur, { edition = false } = {}) {
       }
     }
 
-    const label = document.createElementNS(NS, "text");
-    label.setAttribute("x", gx);
-    label.setAttribute("y", gy - 18);
-    label.setAttribute("class", "plan-nom");
-    label.textContent = parcelle.nom;
-    g.appendChild(label);
+    // Nom de la parcelle : une étiquette posée sur la bordure, en haut à gauche
+    const etiq = document.createElementNS(NS, "g");
+    etiq.setAttribute("class", "plan-etiquette");
+    const largeurTexte = parcelle.nom.length * 12.5 + 22;
+    etiq.innerHTML = `<rect x="${gx - 4}" y="${gy - 30}" width="${largeurTexte}" height="30" rx="15" class="plan-etiquette-fond"/><text x="${gx + 7}" y="${gy - 15}" class="plan-nom">${esc(parcelle.nom)}</text>`;
+    g.appendChild(etiq);
 
     if (edition) activerGlisser(svg, g, parcelle);
     svg.appendChild(g);
@@ -1633,9 +1652,12 @@ function rendrePlan() {
       <p class="texte-doux petit">${ui.editionDisposition
         ? "Fais glisser les parcelles pour reproduire la disposition de ton jardin. Elles s'alignent tous les 50 cm."
         : "Touche une case pour voir ce qu'elle contient. Chaque case fait 1 m × 1 m."}</p>
+      ${!ui.editionDisposition && croquisDisponible() ? `<div class="croquis-propose">✏️ J'ai préparé ton plan d'après ton croquis : bandes placées comme chez toi, bordures (bois noir, pierre sèche, blocs, parpaings), maison au nord et sud en haut.
+        <div class="actions-fenetre"><button class="btn" id="croquis-oui">Appliquer</button><button class="btn-discret" id="croquis-non">Non merci</button></div></div>` : ""}
       ${ui.editionDisposition ? "" : `<div class="voir-par"><span class="texte-doux petit">Voir par</span><div class="chips">${Object.entries(VUES_PLAN).map(([k, l]) => `<button class="chip${lireVuePlan() === k ? " actif" : ""}" data-vueplan="${k}" aria-pressed="${lireVuePlan() === k}">${l}</button>`).join("")}</div></div>`}
       <div id="plan-global" class="plan-zone"></div>
       ${ui.editionDisposition ? "" : legendePlanHTML(lireVuePlan())}
+      ${ui.editionDisposition ? "" : `<button class="btn-discret" id="btn-jardin" style="margin-top:0.6rem">🧭 Orientation, maison et bordures</button>`}
     </section>
     <section class="carte">
       <div class="carte-titre"><h2>Détail des parcelles</h2></div>
@@ -1649,6 +1671,11 @@ function rendrePlan() {
     rendrePlan();
   });
   document.getElementById("btn-ajouter-parcelle").addEventListener("click", ajouterParcelle);
+  const bo = vue.querySelector("#croquis-oui"), bn = vue.querySelector("#croquis-non");
+  if (bo) bo.addEventListener("click", appliquerCroquis);
+  if (bn) bn.addEventListener("click", refuserCroquis);
+  const bj = vue.querySelector("#btn-jardin");
+  if (bj) bj.addEventListener("click", ouvrirReglagesJardin);
   vue.querySelectorAll("[data-vueplan]").forEach(b => b.addEventListener("click", () => {
     try { localStorage.setItem("potagerBretonVuePlan", b.dataset.vueplan); } catch (e) { /* rien */ }
     const y = window.scrollY; rendrePlan(); window.scrollTo(0, y);
@@ -1734,6 +1761,8 @@ function ouvrirReglagesParcelle(id) {
       <div><label for="rp-l">Largeur (m)</label><input id="rp-l" type="number" min="1" max="20" step="1" value="${p.largeur}"></div>
       <div><label for="rp-h">Profondeur (m)</label><input id="rp-h" type="number" min="1" max="20" step="1" value="${p.hauteur}"></div>
     </div>
+    <label for="rp-bordure">Bordure du bac</label>
+    <select id="rp-bordure">${Object.entries(BORDURES).map(([k, l]) => `<option value="${k}"${bordureDe(p) === k ? " selected" : ""}>${l}</option>`).join("")}</select>
     <h3 class="sous-titre-section">Protéger pour l'hiver</h3>
     <p class="texte-doux petit">Note ici ce que tu poses sur les cases vides de cette parcelle. Pour une seule case, ouvre-la depuis le plan.</p>
     <div class="chips">${Object.entries(PROTECTIONS).map(([id, pr]) => `<button class="chip" data-protegerp="${id}">${pr.icone} ${pr.label}</button>`).join("")}</div>
@@ -1761,6 +1790,7 @@ function ouvrirReglagesParcelle(id) {
     });
     fen.querySelector("#rp-ok").addEventListener("click", () => {
       const nom = fen.querySelector("#rp-nom").value.trim() || p.nom;
+      const bordure = fen.querySelector("#rp-bordure").value;
       const l = clamp(parseInt(fen.querySelector("#rp-l").value, 10) || 1, 1, 20);
       const h = clamp(parseInt(fen.querySelector("#rp-h").value, 10) || 1, 1, 20);
       const horsLimites = Object.keys(p.cases).filter(coord => {
@@ -1771,7 +1801,7 @@ function ouvrirReglagesParcelle(id) {
       avecAnnulation(horsLimites.length
         ? `Parcelle réduite : ${horsLimites.length} culture(s) hors du cadre retirée(s).`
         : "Parcelle enregistrée.", () => {
-        p.nom = nom; p.largeur = l; p.hauteur = h;
+        p.nom = nom; p.largeur = l; p.hauteur = h; p.bordure = bordure;
         Object.keys(p.protections || {}).forEach(coord => { if (!dansLimites(p, coord)) delete p.protections[coord]; });
         horsLimites.forEach(coord => culturesDe(p, coord).forEach(c => terminerCulture(p, coord, c.id)));
       });
@@ -2631,7 +2661,7 @@ function toast(message, { annuler } = {}) {
    Version de l'appli : vérification et mise à jour
    ============================================================ */
 
-const FICHIERS_APPLI = ["./", "index.html", "css/style.css", "js/app.js", "js/plants-data.js", "js/extras.js", "js/aide.js", "js/icones.js", "js/sync.js", "manifest.json", "sw.js"];
+const FICHIERS_APPLI = ["./", "index.html", "css/style.css", "js/app.js", "js/plants-data.js", "js/extras.js", "js/aide.js", "js/icones.js", "js/jardin.js", "js/sync.js", "manifest.json", "sw.js"];
 
 async function verifierVersion() {
   ui.verifEnCours = true;

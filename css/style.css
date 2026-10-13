@@ -1258,3 +1258,21 @@ button.frise-ligne:hover { background: var(--papier); }
 .ap-etat { color: var(--encre-douce); font-size: 0.92rem; }
 .ap-geste { margin: 0.4rem 0; font-size: 0.92rem; }
 .ap-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.4rem; }
+
+/* Plan « vrai jardin » */
+.plan-ombre { fill: #000; opacity: 0.18; pointer-events: none; }
+.plan-bordure { opacity: 1; }
+.plan-sol { opacity: 0.95; }
+:root[data-theme="sombre"] .plan-sol { opacity: 0.55; }
+.plan-maison-nom { font-family: var(--font-titre); font-size: 34px; fill: #eef1f4; text-anchor: middle; dominant-baseline: central; font-weight: 600; }
+.plan-boussole-l { font: 700 16px var(--font-corps); fill: #2b2b2b; text-anchor: middle; }
+.plan-decor { pointer-events: none; }
+.croquis-propose { background: var(--cidre-pale); border-radius: var(--radius-petit); padding: 0.7rem 0.9rem; margin-bottom: 0.8rem; font-size: 0.92rem; }
+.croquis-propose .actions-fenetre { margin-top: 0.5rem; }
+.ligne-bordure { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; align-items: center; margin-bottom: 0.4rem; }
+.ligne-bordure label { margin: 0; font-size: 0.9rem; }
+.plan-etiquette { pointer-events: none; }
+.plan-etiquette-fond { fill: #fffdf6; opacity: 0.92; }
+.plan-etiquette .plan-nom { font-size: 21px; fill: #26331f; dominant-baseline: central; }
+:root[data-theme="sombre"] .plan-etiquette-fond { fill: #1b2217; }
+:root[data-theme="sombre"] .plan-etiquette .plan-nom { fill: #e4edd6; }
