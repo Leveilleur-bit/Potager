@@ -229,7 +229,9 @@ async function cycleSynchro() {
 
 function messageErreur(e) {
   const m = String(e && e.message || e);
-  if (m === "popup_closed" || m === "popup_failed_to_open") return "La fenêtre Google a été fermée. Réessaie.";
+  if (m === "popup_failed_to_open") return "Le navigateur a bloqué la fenêtre Google : autorise les fenêtres surgissantes pour ce site, puis réessaie.";
+  if (m === "popup_closed") return "La fenêtre Google a été fermée avant la fin. Si elle affichait une erreur « origine non valide » ou « redirect_uri », l'adresse du site n'est pas autorisée : touche « Vérifier la configuration ».";
+  if (m === "invalid_client" || m === "unauthorized_client") return "Google ne reconnaît pas cet identifiant client. Vérifie-le avec « Vérifier la configuration ».";
   if (m === "access_denied") return "Accès refusé. Vérifie que ton adresse est bien « utilisateur test » dans la console Google.";
   if (m === "reseau" || /Failed to fetch|NetworkError|Load failed/i.test(m)) return "Pas de réseau : la synchronisation reprendra plus tard.";
   if (/drive-403/.test(m)) return "Google refuse l'accès. Vérifie que « Google Drive API » est activée pour ton projet.";
@@ -325,28 +327,79 @@ function carteSynchroHTML() {
         <div class="actions-fenetre">
           <button class="btn" id="sy-lancer"${syncEtat.enCours ? " disabled" : ""}>☁️ Synchroniser maintenant</button>
           ${avant ? `<button class="btn-discret" id="sy-annuler-derniere">Retrouver la version d'avant la dernière réception</button>` : ""}
+          <button class="btn-discret" id="sy-verifier">🔍 Vérifier la configuration</button>
           <button class="btn-discret" id="sy-deconnecter">Se déconnecter</button>
-        </div>`
+        </div>
+        <div id="sy-diag" class="diag" aria-live="polite"></div>`
       : `
         <p class="texte-doux">Pour retrouver le même potager sur ton téléphone et ton ordinateur, l'appli peut copier tes données dans un dossier privé de ton Google Drive. Cela demande une configuration unique (environ 10 minutes) pour obtenir un identifiant Google gratuit.</p>
         <label for="sy-client">Identifiant client Google</label>
         <input id="sy-client" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="123456-abc.apps.googleusercontent.com">
-        <div class="actions-fenetre"><button class="btn" id="sy-enregistrer">Enregistrer et se connecter</button></div>
+        <div class="actions-fenetre">
+          <button class="btn" id="sy-enregistrer">Enregistrer et se connecter</button>
+          <button class="btn-discret" id="sy-verifier">🔍 Vérifier la configuration</button>
+        </div>
+        <div id="sy-diag" class="diag" aria-live="polite"></div>
         <details class="accordeon">
           <summary>Comment obtenir cet identifiant ?</summary>
           <ol class="etapes">
-            <li>Sur ordinateur, ouvre <strong>console.cloud.google.com</strong> avec ton compte Google et crée un projet (nom libre, par exemple « Potager »).</li>
+            <li>Sur ordinateur, ouvre <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener"><strong>console.cloud.google.com</strong></a> avec ton compte Google et crée un projet (nom libre, par exemple « Potager »).</li>
             <li><strong>API et services → Bibliothèque</strong> : cherche « Google Drive API » et clique sur <strong>Activer</strong>.</li>
             <li><strong>Écran de consentement OAuth</strong> (ou « Google Auth Platform ») : type <em>Externe</em>, nom « Mon Potager », ton e-mail. Dans « Accès aux données », ajoute le champ d'application <code>…/auth/drive.appdata</code>.</li>
             <li>Toujours dans l'écran de consentement : clique sur <strong>Publier l'application</strong> (aucune vérification n'est demandée pour ce champ). Sinon, ajoute ton adresse comme « utilisateur test » ; Google te demandera alors de te reconnecter chaque semaine.</li>
-            <li><strong>Identifiants → Créer des identifiants → ID client OAuth</strong>, type <em>Application Web</em>. Dans « Origines JavaScript autorisées », ajoute exactement : <code>${esc(location.origin)}</code></li>
+            <li><strong>Identifiants → Créer des identifiants → ID client OAuth</strong>, type <em>Application Web</em>. Dans « Origines JavaScript autorisées », ajoute exactement : <code>${esc(location.origin)}</code> <button class="lien-bouton" id="sy-copier-origine" type="button">Copier</button></li>
             <li>Copie l'<strong>ID client</strong> (il se termine par <code>.apps.googleusercontent.com</code>) et colle-le ci-dessus.</li>
           </ol>
         </details>`}
     </section>`;
 }
 
+// Vérifie chaque étape de la configuration et explique en clair ce qui manque
+async function diagnostiquerSynchro(zone) {
+  const sortie = zone.querySelector("#sy-diag");
+  const saisie = zone.querySelector("#sy-client");
+  const enregistre = lireSynchro();
+  const id = ((saisie && saisie.value.trim()) || (enregistre && enregistre.clientId) || "");
+  const etapes = [];
+  const dessiner = (enCours) => {
+    sortie.innerHTML = etapes.map(e => `<div class="diag-ligne ${e.ok ? "ok" : "ko"}"><span>${e.ok ? "✓" : "✗"}</span><div><strong>${esc(e.titre)}</strong>${e.aide ? `<div class="petit">${esc(e.aide)}</div>` : ""}</div></div>`).join("")
+      + (enCours ? `<div class="diag-ligne"><span>…</span><div>${esc(enCours)}</div></div>` : "");
+  };
+  const ajouter = (ok, titre, aide) => { etapes.push({ ok, titre, aide }); dessiner(); return ok; };
+
+  if (!id) { ajouter(false, "Identifiant client", "Colle d'abord l'identifiant client Google dans le champ ci-dessus."); return; }
+  if (!ajouter(/^[\w.-]+\.apps\.googleusercontent\.com$/.test(id), "Identifiant client", "Il doit se terminer par .apps.googleusercontent.com. Copie-le en entier depuis la console Google (Identifiants).")) return;
+  ajouter(location.protocol === "https:" || location.hostname === "localhost", "Adresse du site",
+    location.protocol === "https:" ? `À autoriser dans la console Google (« Origines JavaScript autorisées ») : ${location.origin}` : "Google exige une adresse en https.");
+  dessiner("Connexion au service Google…");
+  try { await chargerGIS(); ajouter(true, "Service de connexion Google joignable"); }
+  catch (e) { ajouter(false, "Service de connexion Google joignable", "Vérifie ta connexion internet (ou un bloqueur de publicités) puis réessaie."); return; }
+  dessiner("Une fenêtre Google va s'ouvrir : choisis ton compte et accepte l'accès…");
+  const sauvegarde = enregistre;
+  try {
+    ecrireSynchro({ ...(sauvegarde || {}), clientId: id });
+    syncEtat.jeton = null;
+    await obtenirJeton(true);
+    ajouter(true, "Connexion à ton compte Google");
+  } catch (e) {
+    ajouter(false, "Connexion à ton compte Google", messageErreur(e));
+    if (!sauvegarde) { try { localStorage.removeItem(CLE_SYNCHRO); } catch (x) { /* rien */ } }
+    return;
+  }
+  try { await listerFichiers("name = '" + FICHIER_DONNEES + "'"); ajouter(true, "Accès au dossier privé de l'appli sur Drive"); }
+  catch (e) { ajouter(false, "Accès au dossier privé de l'appli sur Drive", messageErreur(e)); return; }
+  etapes.push({ ok: true, titre: "Tout est prêt", aide: "Tu peux enregistrer l'identifiant et synchroniser." });
+  dessiner();
+  if (!sauvegarde) { try { localStorage.removeItem(CLE_SYNCHRO); } catch (x) { /* rien */ } }
+}
+
 function brancherSynchro(zone) {
+  const verifier = zone.querySelector("#sy-verifier");
+  if (verifier) verifier.addEventListener("click", () => diagnostiquerSynchro(zone));
+  const copier = zone.querySelector("#sy-copier-origine");
+  if (copier) copier.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(location.origin); toast("Adresse copiée."); } catch (e) { toast("Copie impossible : recopie l'adresse à la main."); }
+  });
   const enregistrer = zone.querySelector("#sy-enregistrer");
   if (enregistrer) enregistrer.addEventListener("click", () => {
     const id = zone.querySelector("#sy-client").value.trim();

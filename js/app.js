@@ -10,7 +10,7 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "10";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const VERSION_APP = "11";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
 const DATE_VERSION_APP = "2026-10-12";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
@@ -572,7 +572,7 @@ async function actualiserMeteo(force = false) {
     try {
       const url = "https://api.open-meteo.com/v1/forecast?latitude=" + lieu.lat + "&longitude=" + lieu.lon +
         "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_gusts_10m_max" +
-        "&timezone=Europe%2FParis&forecast_days=5";
+        "&timezone=Europe%2FParis&past_days=7&forecast_days=5";
       const r = await fetch(url);
       if (!r.ok) throw new Error("HTTP " + r.status);
       const d = (await r.json()).daily;
@@ -641,23 +641,6 @@ function genererCoaching() {
         texte: "Vérifie les tuteurs, lestes les voiles et ferme bien les serres ou tunnels."
       });
     }
-    const pluieDouce = prochains.find(j => j.pluie >= 4 && j.tmin >= 7);
-    if (pluieDouce && [3, 4, 5, 6, 9, 10].includes(m)) {
-      conseils.push({
-        type: "conseil", icone: "🐌",
-        titre: `Pluie douce ${nomJour(pluieDouce.date)} : les limaces vont sortir`,
-        texte: "Protège les jeunes plants (salades, choux, haricots) : barrière de cendre, pièges à bière ou ronde à la lampe à la tombée de la nuit."
-      });
-    }
-    const pluie3j = prochains.slice(0, 3).reduce((s, j) => s + j.pluie, 0);
-    const chaud = prochains.slice(0, 3).find(j => j.tmax >= 24);
-    if (pluie3j < 1 && chaud && cultures.length) {
-      conseils.push({
-        type: "conseil", icone: "💧",
-        titre: `Temps sec et ${Math.round(chaud.tmax)} °C ${nomJour(chaud.date)}`,
-        texte: "Arrose copieusement au pied, tôt le matin ou le soir, et paille le sol pour garder la fraîcheur."
-      });
-    }
   }
 
   if (majDisponible()) {
@@ -673,7 +656,7 @@ function genererCoaching() {
 
   // Rappels du plan des 3 mois
   conseils.push(...conseilsDuPlan());
-  if (typeof conseilsAsperges === "function") conseils.push(...conseilsAsperges(cultures));
+  if (typeof conseilsVivaces === "function") conseils.push(...conseilsVivaces(cultures), ...conseilsSante(cultures), ...conseilsEau(cultures));
 
   // Cultures en retard de récolte
   regrouperCultures(cultures).filter(c => c.statut === "retard").slice(0, 2).forEach(c => {
@@ -1022,6 +1005,7 @@ function rendrePlanTroisMois(zone, annee = false) {
       <div class="chips">${categories.map(([id, label]) => `<button class="chip${ui.filtrePlan === id ? " actif" : ""}" data-catplan="${id}">${label}</button>`).join("")}</div>
       <button class="btn-discret" id="p3-agenda" style="margin-top:0.8rem">📅 Ajouter mes rappels à mon agenda</button>
     </section>
+    ${annee ? carteRefaireHTML() : ""}
     ${projets.length ? `<section class="carte">
       <div class="carte-titre"><h2>Mon plan</h2><span class="carte-sous-titre">${nbAFaire} à faire</span></div>
       ${projets.map(ligneProjet).join("")}
@@ -1040,6 +1024,7 @@ function rendrePlanTroisMois(zone, annee = false) {
   zone.querySelectorAll("details[data-k]").forEach(d => d.addEventListener("toggle", () => {
     if (d.open) ui.ouverts.add(d.dataset.k); else ui.ouverts.delete(d.dataset.k);
   }));
+  if (annee) brancherRefaire(zone);
   zone.querySelector("#p3-agenda").addEventListener("click", exporterAgenda);
   zone.querySelectorAll("[data-catplan]").forEach(b => b.addEventListener("click", () => { ui.filtrePlan = b.dataset.catplan; rendreSaisons(); }));
   zone.querySelectorAll("[data-prevoir]").forEach(b => b.addEventListener("click", () => { const [id, cle] = b.dataset.prevoir.split("|"); basculerProjet(id, cle); }));
@@ -1481,6 +1466,7 @@ function ligneCulture(c) {
   const st = STATUTS[c.statut];
   const n = c.cases.length;
   let detail = "Planté le " + formatDate(c.datePlantation);
+  if (typeof estPerenne === "function" && estPerenne(c.plante)) detail += " · pérenne, " + libelleAnnee(ageEnAnnees(c.datePlantation));
   if (c.fenetre) {
     if (["a-venir", "bientot"].includes(c.statut)) {
       const j = joursEntre(aujourdhui(), c.fenetre.debut);
@@ -2020,6 +2006,7 @@ function rendreSaisons() {
         <button role="tab" aria-selected="${ui.vueSaisons === "calendrier"}" data-vs="calendrier">Calendrier</button>
         <button role="tab" aria-selected="${ui.vueSaisons === "frise"}" data-vs="frise">Frise</button>
         <button role="tab" aria-selected="${ui.vueSaisons === "rotation"}" data-vs="rotation">Rotation</button>
+        <button role="tab" aria-selected="${ui.vueSaisons === "sante"}" data-vs="sante">Santé</button>
       </div>`;
   const brancherOnglets = () => vue.querySelectorAll("[data-vs]").forEach(b => b.addEventListener("click", () => { ui.vueSaisons = b.dataset.vs; rendreSaisons(); }));
 
@@ -2031,11 +2018,11 @@ function rendreSaisons() {
     window.scrollTo(0, defilement);
     return;
   }
-  if (ui.vueSaisons === "frise" || ui.vueSaisons === "rotation") {
+  if (ui.vueSaisons === "frise" || ui.vueSaisons === "rotation" || ui.vueSaisons === "sante") {
     vue.innerHTML = `<section class="carte carte-onglets">${onglets}</section><div id="saisons-extra"></div>`;
     brancherOnglets();
     const zone = vue.querySelector("#saisons-extra");
-    if (ui.vueSaisons === "frise") rendreFrise(zone); else rendreRotation(zone);
+    if (ui.vueSaisons === "frise") rendreFrise(zone); else if (ui.vueSaisons === "sante") rendreSante(zone); else rendreRotation(zone);
     return;
   }
   vue.innerHTML = `
@@ -2240,6 +2227,7 @@ function rendreReglages() {
         : `<p class="vide">Aucune commune trouvée.</p>`}</div>
     </section>
 
+    ${carteAspectHTML()}
     ${carteSynchroHTML()}
 
     <section class="carte">
@@ -2346,7 +2334,7 @@ function rendreReglages() {
   });
   vue.querySelector("#rg-exporter").addEventListener("click", exporterDonnees);
   vue.querySelector("#rg-drive").addEventListener("click", sauvegarderVersDrive);
-  brancherSynchro(vue);
+  brancherAspect(vue); brancherSynchro(vue);
   brancherAgenda(vue);
   brancherMesPlantes(vue);
   vue.querySelector("#rg-importer").addEventListener("change", e => { if (e.target.files[0]) importerDonnees(e.target.files[0]); });
@@ -2463,7 +2451,7 @@ function toast(message, { annuler } = {}) {
    Version de l'appli : vérification et mise à jour
    ============================================================ */
 
-const FICHIERS_APPLI = ["./", "index.html", "css/style.css", "js/app.js", "js/plants-data.js", "js/extras.js", "js/sync.js", "manifest.json", "sw.js"];
+const FICHIERS_APPLI = ["./", "index.html", "css/style.css", "js/app.js", "js/plants-data.js", "js/extras.js", "js/aide.js", "js/sync.js", "manifest.json", "sw.js"];
 
 async function verifierVersion() {
   ui.verifEnCours = true;

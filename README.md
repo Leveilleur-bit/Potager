@@ -27,6 +27,7 @@ héberger gratuitement sur **GitHub Pages**.
   famille a occupé la case ces 3 dernières années et si les voisins
   s'entendent bien ou mal.
 - **Mon année** (onglet Saisons) : plan sur 12 mois, mois par mois ; le coach rappelle chaque culture au bon moment. Asperges incluses, avec leurs soins mensuels.
+- **Santé du potager** (Saisons → Santé), **plantes pérennes** (âge et soins du mois), **arrosage selon la météo**, **thème sombre** et taille du texte (Réglages → Apparence).
 - **Coach du trimestre** (onglet Saisons → « Plan 3 mois ») : pour les
   3 prochains mois, des idées de cultures classées selon ton potager (place
   libre, bons voisins, rotation, dernière occasion de semer). Un bouton
@@ -74,7 +75,7 @@ commune choisie est envoyée.
 ## Déployer sur GitHub Pages
 
 1. Crée un nouveau dépôt GitHub et mets-y le contenu de ce dossier
-   (`index.html`, `css/`, `js/` (dont `extras.js` et `sync.js`), `icon-192.png`, `icon-512.png`, `manifest.json`, `sw.js`, ce
+   (`index.html`, `css/`, `js/` (dont `aide.js` (pérennes, santé, arrosage, apparence), `extras.js` et `sync.js`), `icon-192.png`, `icon-512.png`, `manifest.json`, `sw.js`, ce
    fichier `README.md`) **en conservant l'arborescence** : les fichiers
    `style.css` et `app.js` doivent rester dans leurs sous-dossiers
    `css/` et `js/`, pas à la racine.

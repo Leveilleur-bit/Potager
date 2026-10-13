@@ -1,7 +1,12 @@
 {
-  "version": "10",
-  "date": "2026-10-12",
+  "version": "11",
+  "date": "2026-10-13",
   "nouveautes": [
-    "Plan de l'année : les mois et les « autres idées » restent ouverts quand tu ajoutes une culture, sans remonter en haut de page"
+    "Plantes pérennes : âge affiché et soins du mois (asperges, fraisiers, framboisiers, aromatiques…), avec conseil de renouvellement",
+    "Nouvel onglet « Santé » : maladies et ravageurs courants en Bretagne, à surveiller selon tes cultures",
+    "Arrosage et météo : le coach tient compte de la pluie récente et annoncée, de la chaleur et des gros orages",
+    "« Refaire comme l'an dernier » dans Mon année, avec conseil de rotation",
+    "Thème clair/sombre et taille du texte réglables (Réglages → Apparence)",
+    "Synchro : bouton « Vérifier la configuration » qui explique ce qui manque"
   ]
 }
