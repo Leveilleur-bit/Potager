@@ -1317,3 +1317,7 @@ body.sans-defilement { overflow: hidden; }
 .lot-journal > summary::-webkit-details-marker { display: none; }
 .lot-journal[open] > summary { color: var(--encre-douce); }
 .lot-journal .entree-journal { padding-left: 1.2rem; }
+
+.plan-arbres { pointer-events: none; }
+.plan-arbre { opacity: 0.78; }
+.plan-arbre-fruitier { opacity: 0.7; }

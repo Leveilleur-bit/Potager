@@ -21,9 +21,47 @@ function reglagesJardin() {
   return {
     sud: DIRECTIONS_SUD[j.sud] ? j.sud : null,
     maison: COTES_MAISON[j.maison] ? j.maison : "aucune",
-    croquis: j.croquis || null
+    croquis: j.croquis || null,
+    croquis2: j.croquis2 || null,
+    arbres: Array.isArray(j.arbres) ? j.arbres.filter(a => a && TYPES_ARBRES[a.type] && Number.isFinite(a.dx) && Number.isFinite(a.dy)) : []
   };
 }
+const EPAISSEURS_BORDURE = { "bois": 8, "bois-noir": 6, "pierre-seche": 20, "parpaing": 20, "blocs": 15 };   // en cm
+function epaisseurBordure(p) { return EPAISSEURS_BORDURE[bordureDe(p)] || 10; }
+// Taille réelle d'une parcelle (en mètres) ; par défaut, une case = 1 m
+function dimsReelles(p) {
+  const ok = v => Number.isFinite(v) && v >= 0.3;
+  return { W: ok(p.reelL) ? p.reelL : p.largeur, H: ok(p.reelH) ? p.reelH : p.hauteur };
+}
+
+/* ---------- Arbres du jardin ---------- */
+const TYPES_ARBRES = { palmier: "Palmier", cordyline: "Cordyline", fruitier: "Arbre fruitier", arbre: "Arbre" };
+function arbreDessin(type, cx, cy, r) {
+  if (type === "palmier") {
+    let s = "";
+    for (let i = 0; i < 11; i++) { const a = i * 360 / 11; s += `<path d="M${cx} ${cy} L${cx - r * 0.16} ${cy - r * 0.55} L${cx} ${cy - r} L${cx + r * 0.16} ${cy - r * 0.55}Z" fill="${i % 2 ? "#3f7a3a" : "#4f9447"}" transform="rotate(${a} ${cx} ${cy})"/>`; }
+    return `<circle cx="${cx + 8}" cy="${cy + 12}" r="${r * 0.95}" fill="#000" opacity=".12"/>` + s + `<circle cx="${cx}" cy="${cy}" r="${r * 0.12}" fill="#7a5a3a"/>`;
+  }
+  if (type === "cordyline") {
+    let s = "";
+    for (let i = 0; i < 16; i++) { const a = i * 22.5 + (i % 2) * 8; s += `<path d="M${cx} ${cy} L${cx - 3} ${cy - r * (0.75 + (i % 3) * 0.1)} L${cx + 3} ${cy - r * (0.75 + (i % 3) * 0.1)}Z" fill="${i % 2 ? "#7b3b4a" : "#9c5a5f"}" transform="rotate(${a} ${cx} ${cy})"/>`; }
+    return `<circle cx="${cx + 6}" cy="${cy + 9}" r="${r * 0.8}" fill="#000" opacity=".1"/>` + s + `<circle cx="${cx}" cy="${cy}" r="5" fill="#5a3a2a"/>`;
+  }
+  const vert = type === "fruitier" ? "#6fa24e" : "#4f8a45";
+  return `<circle cx="${cx + 8}" cy="${cy + 12}" r="${r}" fill="#000" opacity=".12"/><circle cx="${cx}" cy="${cy}" r="${r}" fill="${vert}" opacity=".62"/>`
+    + `<circle cx="${cx - r * 0.35}" cy="${cy - r * 0.3}" r="${r * 0.45}" fill="#8cc068" opacity=".55"/><circle cx="${cx + r * 0.3}" cy="${cy + r * 0.25}" r="${r * 0.5}" fill="#5c9440" opacity=".5"/>`
+    + (type === "fruitier" ? `<circle cx="${cx - r * 0.3}" cy="${cy + r * 0.2}" r="5" fill="#d23c3c"/><circle cx="${cx + r * 0.35}" cy="${cy - r * 0.25}" r="5" fill="#d23c3c"/><circle cx="${cx + r * 0.05}" cy="${cy + r * 0.5}" r="5" fill="#d23c3c"/>` : "");
+}
+function arbresSVG(jardin, MARGE, MARGE_HAUT) {
+  return (jardin.arbres || []).map(a => {
+    const p = etat.parcelles.find(x => x.id === a.parcelle);
+    if (!p) return "";
+    const cx = (p.posX + MARGE + a.dx) * U, cy = (p.posY + MARGE_HAUT + a.dy) * U;
+    const r = (a.r || 0.8) * U;
+    return `<g class="plan-arbre plan-arbre-${a.type}"><title>${esc(TYPES_ARBRES[a.type] || "Arbre")}</title>${arbreDessin(a.type, cx, cy, r)}</g>`;
+  }).join("");
+}
+
 function bordureDe(parcelle) { return BORDURES[parcelle.bordure] ? parcelle.bordure : "bois"; }
 
 // Motifs SVG (bordures, gazon). Les identifiants sont propres à chaque dessin.
@@ -107,32 +145,44 @@ function ouvrirReglagesJardin() {
 
 /* ---------- Disposition du croquis envoyé (propre à ce potager) ---------- */
 
-// Retrouve les 4 parcelles du croquis par leur nom et leurs dimensions
+// Retrouve les 4 parcelles du croquis par leur nom
 function parcellesDuCroquis() {
-  const trouver = (re, l, h) => etat.parcelles.find(p => re.test(p.nom) && p.largeur === l && p.hauteur === h);
-  const r = {
-    haute: trouver(/haute/i, 7, 1), mediane: trouver(/m[ée]diane/i, 5, 1),
-    retour: trouver(/retour/i, 1, 3), basse: trouver(/basse/i, 5, 1)
-  };
+  const trouver = re => etat.parcelles.find(p => re.test(p.nom));
+  const r = { haute: trouver(/haute/i), mediane: trouver(/m[ée]diane/i), retour: trouver(/retour/i), basse: trouver(/basse/i) };
   return Object.values(r).every(Boolean) ? r : null;
 }
 function croquisDisponible() {
-  return reglagesJardin().croquis === null && !!parcellesDuCroquis();
+  const j = reglagesJardin();
+  return j.croquis2 === null && j.croquis !== "refuse" && !!parcellesDuCroquis();
 }
+// Mesures du second croquis : bande haute 7 × 1 m (bois, 5 cm), 50 cm d'allée,
+// massif central 6 × 1,5 m (pierre sèche) avec le palmier, retour de 0,8 × 3,3 m
+// et massif bas de 3,4 × 1,2 m avec la cordyline et le cerisier dans l'angle.
 function appliquerCroquis() {
   const r = parcellesDuCroquis();
   if (!r) return;
-  avecAnnulation("Le plan suit maintenant ton croquis.", () => {
-    Object.assign(r.haute, { posX: 0, posY: 0, bordure: "bois-noir" });
-    Object.assign(r.mediane, { posX: 0.5, posY: 1.5, bordure: "pierre-seche" });
-    Object.assign(r.retour, { posX: 6, posY: 1, bordure: "blocs" });
-    Object.assign(r.basse, { posX: 1, posY: 3, bordure: "parpaing" });
-    etat.reglages.jardin = Object.assign({}, etat.reglages.jardin || {}, { sud: "haut", maison: "bas-gauche", croquis: "applique" });
+  avecAnnulation("Le plan suit maintenant les mesures de ton croquis.", () => {
+    Object.assign(r.haute, { posX: 0, posY: 0, reelL: 7, reelH: 1, bordure: "bois-noir" });
+    if (r.mediane.hauteur === 1 && r.mediane.largeur < 6) r.mediane.largeur = 6;   // on ajoute des cases, on n'en retire jamais
+    Object.assign(r.mediane, { posX: 0, posY: 1.5, reelL: 6, reelH: 1.5, bordure: "pierre-seche" });
+    Object.assign(r.retour, { posX: 6.2, posY: 1, bordure: "pierre-seche" });
+    if (r.retour.largeur === 1) Object.assign(r.retour, { reelL: 0.8, reelH: 3.3 }); else Object.assign(r.retour, { reelL: 3.3, reelH: 0.8 });
+    Object.assign(r.basse, { posX: 2.8, posY: 3.1, reelL: 3.4, reelH: 1.2, bordure: "pierre-seche" });
+    etat.reglages.jardin = Object.assign({}, etat.reglages.jardin || {}, {
+      sud: "haut", maison: (etat.reglages.jardin && etat.reglages.jardin.maison) || "bas-gauche", croquis: "applique", croquis2: "applique",
+      arbres: [
+        { type: "palmier", parcelle: r.mediane.id, dx: 3.9, dy: 0.75, r: 0.8 },
+        { type: "cordyline", parcelle: r.basse.id, dx: 1.7, dy: 0.6, r: 0.5 },
+        { type: "fruitier", parcelle: r.retour.id, dx: 0.4, dy: 2.9, r: 0.7 }
+      ]
+    });
+    const renommer = (p, txt) => { if (/\(\d+([.,]\d+)? ?m\)\s*$/.test(p.nom)) p.nom = p.nom.replace(/\(\d+([.,]\d+)? ?m\)\s*$/, "(" + txt + ")"); };
+    renommer(r.mediane, "6 m"); renommer(r.retour, "3,3 m"); renommer(r.basse, "3,4 m");
     normaliserPositions();
   });
 }
 function refuserCroquis() {
-  etat.reglages.jardin = Object.assign({}, etat.reglages.jardin || {}, { croquis: "refuse" });
+  etat.reglages.jardin = Object.assign({}, etat.reglages.jardin || {}, { croquis: "refuse", croquis2: "refuse" });
   sauvegarder();
   rendre();
 }
