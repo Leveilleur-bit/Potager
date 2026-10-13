@@ -1,5 +1,5 @@
 /* ============================================================
-   Mon Potager Breton — synchronisation avec GitHub
+   Mon Potager — synchronisation avec GitHub
    Les données sont rangées dans un dépôt GitHub PRIVÉ à toi
    (ex. « potager-donnees ») : potager-breton.json + photos/.
    Chaque appareil garde une copie locale (l'appli marche hors

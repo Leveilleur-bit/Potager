@@ -1,6 +1,6 @@
 {
-  "name": "Mon Potager Breton",
-  "short_name": "Potager",
+  "name": "Mon Potager",
+  "short_name": "Mon Potager",
   "description": "Suivi de potager, plan des parcelles et conseils adaptés au climat breton.",
   "start_url": "./index.html",
   "scope": "./",

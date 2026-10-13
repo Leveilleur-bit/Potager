@@ -1,4 +1,4 @@
-# 🌱 Mon Potager Breton
+# 🌱 Mon Potager
 
 Une petite application web pour suivre un potager en Bretagne : modélisation
 des parcelles en carrés, rappels de récolte, idées de plantation selon la

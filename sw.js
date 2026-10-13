@@ -1,5 +1,5 @@
 /* ============================================================
-   Service Worker — Mon Potager Breton
+   Service Worker — Mon Potager
    Permet d'utiliser l'appli hors-ligne (au fond du jardin sans
    réseau) et de l'installer sur l'écran d'accueil du téléphone.
 
@@ -14,7 +14,7 @@
    nouvelle version.
    ============================================================ */
 
-const CACHE_VERSION = "v24";
+const CACHE_VERSION = "v25";
 const CACHE_NAME = "potager-breton-" + CACHE_VERSION;
 
 const FICHIERS_A_METTRE_EN_CACHE = [

@@ -1,5 +1,5 @@
 /* ============================================================
-   Mon Potager Breton — fonctions complémentaires
+   Mon Potager — fonctions complémentaires
    Photos du journal, sauvegarde vers Drive, export agenda (.ics),
    rotation, frise de l'année, réserve de graines et courses,
    plantes personnalisées.
@@ -161,7 +161,7 @@ async function sauvegarderVersDrive() {
   const bouton = document.getElementById("rg-drive");
   if (bouton) { bouton.disabled = true; bouton.textContent = "Préparation…"; }
   const blob = await construireSauvegarde();
-  const resultat = await envoyerFichier(blob, "mon-potager-breton-" + isoLocal() + ".json", "application/json", "Sauvegarde Mon Potager Breton");
+  const resultat = await envoyerFichier(blob, "mon-potager-" + isoLocal() + ".json", "application/json", "Sauvegarde Mon Potager");
   if (resultat !== "annule") {
     etat.reglages.derniereSauvegarde = isoLocal();
     sauvegarder();
@@ -241,7 +241,7 @@ function evenementsAgenda() {
     "Tu peux sortir les plants frileux : tomates, courgettes, basilic, haricots.");
   const debutProchainMois = new Date(auj.getFullYear(), auj.getMonth() + 1, 1);
   ajouter("sauvegarde", debutProchainMois, "💾 Sauvegarder mon potager",
-    "Ouvre Mon Potager Breton → Réglages → Synchroniser (ou Envoyer le fichier de sauvegarde).", { repetition: "FREQ=MONTHLY;COUNT=12" });
+    "Ouvre Mon Potager → Réglages → Synchroniser (ou Envoyer le fichier de sauvegarde).", { repetition: "FREQ=MONTHLY;COUNT=12" });
   return evenements;
 }
 
@@ -249,7 +249,7 @@ function construireICS(evenements) {
   const maintenant = new Date();
   const horodatage = maintenant.getUTCFullYear() + String(maintenant.getUTCMonth() + 1).padStart(2, "0") + String(maintenant.getUTCDate()).padStart(2, "0")
     + "T" + String(maintenant.getUTCHours()).padStart(2, "0") + String(maintenant.getUTCMinutes()).padStart(2, "0") + String(maintenant.getUTCSeconds()).padStart(2, "0") + "Z";
-  const lignes = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Mon Potager Breton//FR", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "X-WR-CALNAME:Mon potager"];
+  const lignes = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Mon Potager//FR", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "X-WR-CALNAME:Mon potager"];
   evenements.forEach(ev => {
     lignes.push("BEGIN:VEVENT",
       "UID:" + ev.uid + "@potager-breton",
@@ -270,7 +270,7 @@ function construireICS(evenements) {
 async function exporterAgenda() {
   const evenements = evenementsAgenda();
   const blob = new Blob([construireICS(evenements)], { type: "text/calendar" });
-  const resultat = await envoyerFichier(blob, "potager-breton-agenda.ics", "text/calendar", "Rappels Mon Potager Breton");
+  const resultat = await envoyerFichier(blob, "mon-potager-agenda.ics", "text/calendar", "Rappels Mon Potager");
   if (resultat === "annule") return;
   toast(resultat === "partage"
     ? `${evenements.length} rappels envoyés : choisis ton agenda.`

@@ -1,5 +1,5 @@
 /* ============================================================
-   Mon Potager Breton — logique de l'application
+   Mon Potager — logique de l'application
    Tout est stocké en local (localStorage) : rien n'est envoyé à
    un serveur, sauf la position de la commune choisie, transmise
    au service météo gratuit Open-Meteo pour les prévisions.
@@ -10,7 +10,7 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "24";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const VERSION_APP = "25";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
 const DATE_VERSION_APP = "2026-10-12";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
@@ -2738,7 +2738,7 @@ function importerDonnees(fichier) {
       donnees = JSON.parse(lecteur.result);
       if (!donnees || !Array.isArray(donnees.parcelles)) throw new Error("format");
     } catch (e) {
-      toast("Ce fichier n'est pas une sauvegarde valide de Mon Potager Breton.");
+      toast("Ce fichier n'est pas une sauvegarde valide de Mon Potager.");
       return;
     }
     const photos = donnees._photos;
