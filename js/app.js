@@ -10,7 +10,7 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "21";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const VERSION_APP = "22";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
 const DATE_VERSION_APP = "2026-10-12";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
@@ -1691,7 +1691,7 @@ function rendrePlan() {
       <p class="texte-doux petit">${ui.editionDisposition
         ? "Fais glisser les parcelles pour reproduire la disposition de ton jardin. Elles s'alignent tous les 50 cm."
         : "Touche une case pour voir ce qu'elle contient."}</p>
-      ${!ui.editionDisposition && croquisDisponible() ? `<div class="croquis-propose">✏️ J'ai préparé ton plan avec les mesures de ton dernier croquis : vraies dimensions, bande haute et bande médiane en biais (2,5 m d'allée à gauche, 1 m à droite), bordures, palmier, cordyline et cerisier.
+      ${!ui.editionDisposition && croquisDisponible() ? `<div class="croquis-propose">✏️ Plan ajusté : bandes haute et médiane en biais (13°), retour allongé pour rejoindre la bande haute, allées un peu resserrées. Touche Appliquer pour le voir.
         <div class="actions-fenetre"><button class="btn" id="croquis-oui">Appliquer</button><button class="btn-discret" id="croquis-non">Non merci</button></div></div>` : ""}
       ${ui.editionDisposition ? "" : `<div class="voir-par"><span class="texte-doux petit">Voir par</span><div class="chips">${Object.entries(VUES_PLAN).map(([k, l]) => `<button class="chip${lireVuePlan() === k ? " actif" : ""}" data-vueplan="${k}" aria-pressed="${lireVuePlan() === k}">${l}</button>`).join("")}</div></div>`}
       <div class="plan-cadre"><div id="plan-global" class="plan-zone"></div>

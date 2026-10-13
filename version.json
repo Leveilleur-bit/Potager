@@ -1,8 +1,7 @@
 {
-  "version": "21",
+  "version": "22",
   "date": "2026-10-13",
   "nouveautes": [
-    "Plan encore plus fidèle : la bande haute et la bande médiane sont en biais, comme dans ton jardin (2,5 m d'allée à gauche, 1 m à droite)",
-    "50 cm entre le bout de la bande médiane et le retour"
+    "Plan : compromis entre les mesures — la bande haute rejoint le retour (≈ 3,75 m), bandes en biais à 13°"
   ]
 }

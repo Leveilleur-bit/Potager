@@ -24,6 +24,7 @@ function reglagesJardin() {
     croquis: j.croquis || null,
     croquis2: j.croquis2 || null,
     croquis3: j.croquis3 || null,
+    croquis4: j.croquis4 || null,
     arbres: Array.isArray(j.arbres) ? j.arbres.filter(a => a && TYPES_ARBRES[a.type] && Number.isFinite(a.dx) && Number.isFinite(a.dy)) : []
   };
 }
@@ -164,7 +165,7 @@ function parcellesDuCroquis() {
 }
 function croquisDisponible() {
   const j = reglagesJardin();
-  return j.croquis3 === null && j.croquis !== "refuse" && !!parcellesDuCroquis();
+  return j.croquis4 === null && j.croquis !== "refuse" && !!parcellesDuCroquis();
 }
 // Mesures du second croquis : bande haute 7 × 1 m (bois, 5 cm), 50 cm d'allée,
 // massif central 6 × 1,5 m (pierre sèche) avec le palmier, retour de 0,8 × 3,3 m
@@ -172,22 +173,23 @@ function croquisDisponible() {
 function appliquerCroquis() {
   const r = parcellesDuCroquis();
   if (!r) return;
-  // Bande haute et bande médiane en biais (≈ 14,5°) : 2,5 m d'allée à gauche et 1 m à droite
-  // au-dessus de la bande basse, 50 cm entre le bout de la médiane et le retour.
-  const ANGLE = 14.48;
+  // Compromis entre les mesures : bandes haute et médiane en biais (13°), environ 2,1 m
+  // d'allée à gauche et 0,75 m à droite au-dessus de la bande basse, 50 cm entre le bout
+  // de la médiane et le retour, et un retour d'environ 3,75 m qui rejoint la bande haute.
+  const ANGLE = 13;
   avecAnnulation("Le plan suit maintenant les mesures de ton croquis.", () => {
-    Object.assign(r.haute, { posX: 0.45, posY: 0, angle: ANGLE, reelL: 7, reelH: 1, bordure: "bois-noir" });
+    Object.assign(r.haute, { posX: 0.14, posY: 0, angle: ANGLE, reelL: 7, reelH: 1, bordure: "bois-noir" });
     if (r.mediane.hauteur === 1 && r.mediane.largeur < 6) r.mediane.largeur = 6;   // on ajoute des cases, on n'en retire jamais
-    Object.assign(r.mediane, { posX: 0.47, posY: 1.55, angle: ANGLE, reelL: 6, reelH: 1.5, bordure: "pierre-seche" });
-    Object.assign(r.retour, { posX: 6.4, posY: 3.4, angle: 0, bordure: "pierre-seche" });
-    if (r.retour.largeur === 1) Object.assign(r.retour, { reelL: 0.8, reelH: 3.3 }); else Object.assign(r.retour, { reelL: 3.3, reelH: 0.8 });
-    Object.assign(r.basse, { posX: 3.0, posY: 5.5, angle: 0, reelL: 3.4, reelH: 1.2, bordure: "pierre-seche" });
+    Object.assign(r.mediane, { posX: 0.19, posY: 1.55, angle: ANGLE, reelL: 6, reelH: 1.5, bordure: "pierre-seche" });
+    Object.assign(r.retour, { posX: 6.2, posY: 2.55, angle: 0, bordure: "pierre-seche" });
+    if (r.retour.largeur === 1) Object.assign(r.retour, { reelL: 0.8, reelH: 3.75 }); else Object.assign(r.retour, { reelL: 3.75, reelH: 0.8 });
+    Object.assign(r.basse, { posX: 2.8, posY: 5.11, angle: 0, reelL: 3.4, reelH: 1.2, bordure: "pierre-seche" });
     etat.reglages.jardin = Object.assign({}, etat.reglages.jardin || {}, {
-      sud: "haut", maison: (etat.reglages.jardin && etat.reglages.jardin.maison) || "bas-gauche", croquis: "applique", croquis2: "applique", croquis3: "applique",
+      sud: "haut", maison: (etat.reglages.jardin && etat.reglages.jardin.maison) || "bas-gauche", croquis: "applique", croquis2: "applique", croquis3: "applique", croquis4: "applique",
       arbres: [
         { type: "palmier", parcelle: r.mediane.id, dx: 3.9, dy: 0.75, r: 0.8 },
         { type: "cordyline", parcelle: r.basse.id, dx: 1.7, dy: 0.6, r: 0.5 },
-        { type: "fruitier", parcelle: r.retour.id, dx: 0.4, dy: 2.9, r: 0.7 }
+        { type: "fruitier", parcelle: r.retour.id, dx: 0.4, dy: 3.35, r: 0.7 }
       ]
     });
     const renommer = (p, txt) => { if (/\(\d+([.,]\d+)? ?m\)\s*$/.test(p.nom)) p.nom = p.nom.replace(/\(\d+([.,]\d+)? ?m\)\s*$/, "(" + txt + ")"); };
@@ -195,7 +197,7 @@ function appliquerCroquis() {
   });
 }
 function refuserCroquis() {
-  etat.reglages.jardin = Object.assign({}, etat.reglages.jardin || {}, { croquis: "refuse", croquis2: "refuse", croquis3: "refuse" });
+  etat.reglages.jardin = Object.assign({}, etat.reglages.jardin || {}, { croquis: "refuse", croquis2: "refuse", croquis3: "refuse", croquis4: "refuse" });
   sauvegarder();
   rendre();
 }
