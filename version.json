@@ -1,9 +1,8 @@
 {
-  "version": "12",
+  "version": "13",
   "date": "2026-10-13",
   "nouveautes": [
-    "Photos : bouton 📷 Photo directement sur chaque culture (éditeur de case), rattachée à la plante",
-    "Les photos s'affichent aussi sur la fiche de la plante, pour comparer d'une année à l'autre",
-    "Journal : choix de la culture concernée, aperçu des photos avant d'enregistrer, explication de leur rôle"
+    "Nouvel accueil « Aujourd'hui au jardin » : le temps du jour, ce qu'il y a à faire cette semaine, ce qui est à récolter ou pousse en ce moment, et ce qui est prévu bientôt",
+    "Le plan complet reste dans l'onglet Plan"
   ]
 }

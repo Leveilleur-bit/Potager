@@ -10,7 +10,7 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "12";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const VERSION_APP = "13";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
 const DATE_VERSION_APP = "2026-10-12";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
@@ -590,7 +590,7 @@ async function actualiserMeteo(force = false) {
       else meteo = { cle, erreur: true };
     } finally {
       meteoEnCours = null;
-      if (ui.vue === "accueil") { rendreMeteo(); rendreCoach(); }
+      if (ui.vue === "accueil") { rendreMeteo(); rendreCoach(); rendreJour(); }
     }
   })();
   return meteoEnCours;
@@ -1313,50 +1313,128 @@ function activerGlisser(svg, g, parcelle) {
 
 function rendreAccueil() {
   const vue = document.getElementById("vue-accueil");
-  const { total, occupees } = compterCases();
+  const m = moisCourant();
   vue.innerHTML = `
-    <section class="carte carte-plan">
-      <div class="carte-titre">
-        <h2>Mon potager</h2>
-        <span class="carte-sous-titre">${occupees} m² cultivés sur ${total} m²</span>
-      </div>
-      <div id="plan-accueil" class="plan-zone"></div>
-      <div class="legende-plan">
-        <span><span class="puce puce-recolte"></span>prêt à récolter</span>
-        <span><span class="puce puce-retard"></span>récolte en retard</span>
-        <span class="legende-aide">Touche une case pour la modifier</span>
-      </div>
-    </section>
+    <section class="carte carte-jour" id="jour"></section>
     <section class="carte">
-      <div class="carte-titre"><h2>Le coach du jour</h2></div>
+      <div class="carte-titre"><h2>Cette semaine au jardin</h2></div>
       <div id="coach"></div>
     </section>
     <section class="carte">
-      <div class="carte-titre"><h2>Météo du jardin</h2><span class="carte-sous-titre" id="meteo-lieu"></span></div>
+      <div class="carte-titre"><h2>En ce moment au potager</h2></div>
+      <div id="instantane"></div>
+    </section>
+    <section class="carte" id="carte-bientot" hidden>
+      <div class="carte-titre"><h2>Bientôt</h2></div>
+      <div id="bientot"></div>
+    </section>
+    <section class="carte">
+      <div class="carte-titre"><h2>Les prochains jours</h2><span class="carte-sous-titre" id="meteo-lieu"></span></div>
       <div id="meteo"></div>
     </section>
     <section class="carte">
-      <div class="carte-titre"><h2>Récoltes</h2></div>
-      <div id="rappels"></div>
-    </section>
-    <section class="carte">
-      <div class="carte-titre"><h2>En ${MOIS_NOMS[moisCourant() - 1]} au potager</h2></div>
+      <div class="carte-titre"><h2>Les gestes ${/^[aeiou]/i.test(MOIS_NOMS[m - 1]) ? "d'" : "de "}${MOIS_NOMS[m - 1]}</h2></div>
       <div id="taches-du-mois"></div>
     </section>`;
 
-  dessinerPlan(document.getElementById("plan-accueil"));
+  rendreJour();
   rendreCoach();
+  rendreInstantane();
+  rendreBientot();
   rendreMeteo();
-  rendreRappels();
   rendreTachesDuMois();
   actualiserMeteo();
+}
+
+// Bandeau du jour : salutation, temps qu'il fait, idée de saison
+function rendreJour() {
+  const zone = document.getElementById("jour");
+  if (!zone) return;
+  const h = new Date().getHours();
+  const salut = h < 5 ? "Bonsoir" : h < 12 ? "Bonjour" : h < 18 ? "Bon après-midi" : "Bonsoir";
+  const jours = joursMeteoValides();
+  let temps = "";
+  if (jours) {
+    const j = jours[0], d = decrireMeteo(j.code);
+    const traits = [];
+    if (j.tmin <= 1) traits.push("gel possible cette nuit");
+    if (j.pluie >= 8) traits.push("bien arrosé par la pluie");
+    else if (j.pluie >= 1) traits.push("quelques averses");
+    if (j.rafales >= 50) traits.push("du vent");
+    temps = `<div class="jour-meteo"><span class="jour-icone" aria-hidden="true">${d.icone}</span><div><strong>${esc(d.texte || "Aujourd'hui")}, ${Math.round(j.tmax)}°</strong>${traits.length ? `<div class="jour-traits">${esc(majuscule(listeFr(traits)))}</div>` : ""}</div></div>`;
+  } else if (!etat.reglages.lieu) {
+    temps = `<button class="lien-bouton" id="jour-commune">☁️ Ajoute ta commune pour avoir la météo du jardin</button>`;
+  }
+  const infos = MONTHLY_ADVICE.find(x => x.mois === moisCourant());
+  const idee = infos && infos.court.length ? infos.court[new Date().getDate() % infos.court.length] : "";
+  zone.innerHTML = `
+    <div class="jour-salut">${salut} 🌿</div>
+    ${temps}
+    ${idee ? `<p class="jour-idee">💡 ${esc(idee)}</p>` : ""}`;
+  const b = zone.querySelector("#jour-commune");
+  if (b) b.addEventListener("click", () => allerA("reglages"));
+}
+
+// Ce qui se passe dans le potager, en mots (sans le plan, qui a son propre onglet)
+function rendreInstantane() {
+  const zone = document.getElementById("instantane");
+  if (!zone) return;
+  const groupes = regrouperCultures(listerCultures());
+  const parPlante = filtre => {
+    const vus = new Map();
+    groupes.filter(filtre).forEach(g => { if (!vus.has(g.plante.id)) vus.set(g.plante.id, g); });
+    return [...vus.values()].sort((a, b) => a.plante.nom.localeCompare(b.plante.nom, "fr"));
+  };
+  const perenne = g => typeof estPerenne === "function" && estPerenne(g.plante);
+  const lignes = [
+    ["🧺", "À récolter", parPlante(g => STATUTS_A_RECOLTER.includes(g.statut)), "recolte"],
+    ["⏳", "Bientôt prêts", parPlante(g => g.statut === "bientot"), ""],
+    ["🌱", "En train de pousser", parPlante(g => ["a-venir", "en-place", "cueillette-libre"].includes(g.statut) && !perenne(g)), ""],
+    ["🌳", "Plantes pérennes", parPlante(g => perenne(g) && !STATUTS_A_RECOLTER.includes(g.statut)), ""]
+  ].filter(l => l[2].length);
+  const { libres, total } = compterCases();
+  const place = !total ? "" : libres === 0 ? "Toutes les cases sont occupées."
+    : libres === total ? "Toutes les cases sont libres." : libres <= total / 4 ? "Il reste un peu de place." : "Il reste de la place pour de nouvelles cultures.";
+  zone.innerHTML = `
+    ${lignes.length ? lignes.map(([ic, titre, liste, classe]) => `
+      <div class="inst-ligne">
+        <div class="inst-titre">${ic} ${titre}</div>
+        <div class="chips">${liste.map(g => `<button class="chip${classe ? " chip-" + classe : ""}${g.statut === "retard" ? " chip-retard" : ""}" data-ouvrir="${g.parcelle.id}|${g.cases[0]}|${g.contenu.id}">${iconePlante(g.plante)} ${esc(nomCourt(g.plante))}</button>`).join("")}</div>
+      </div>`).join("")
+      : `<p class="vide">Ton potager est vide pour l'instant : commence par placer tes cultures sur le plan.</p>`}
+    <div class="inst-pied"><span class="texte-doux petit">${esc(place)}</span><button class="btn-discret" id="inst-plan">Voir le plan →</button></div>`;
+  zone.querySelectorAll("[data-ouvrir]").forEach(b => b.addEventListener("click", () => {
+    const [pid, coord, cid] = b.dataset.ouvrir.split("|");
+    const [x, y] = coord.split("-").map(Number);
+    ouvrirEditeurCase(pid, x, y, { editId: cid });
+  }));
+  zone.querySelector("#inst-plan").addEventListener("click", () => allerA("plan"));
+}
+
+// Ce qui est prévu dans les deux prochains mois (plan de l'année)
+function rendreBientot() {
+  const zone = document.getElementById("bientot");
+  const carte = document.getElementById("carte-bientot");
+  if (!zone || !carte) return;
+  const limite = troisProchainsMois(3)[2].cle;
+  const prevus = etat.projets.filter(pr => !pr.fait && pr.mois <= limite && planteParId(pr.planteId))
+    .sort((a, b) => a.mois.localeCompare(b.mois)).slice(0, 5);
+  carte.hidden = !prevus.length;
+  if (!prevus.length) return;
+  zone.innerHTML = prevus.map(pr => {
+    const p = planteParId(pr.planteId);
+    const [, mm] = pr.mois.split("-").map(Number);
+    const quand = positionMois(pr.mois) <= 0 ? "ce mois-ci" : "en " + nomMoisCle(pr.mois);
+    return `<div class="bientot-ligne"><span>${iconePlante(p)} <strong>${esc(nomCourt(p))}</strong></span><span class="texte-doux petit">${esc(verbeAction(p, mm).toLowerCase())} ${esc(quand)}</span></div>`;
+  }).join("") + `<div class="inst-pied"><span></span><button class="btn-discret" id="bientot-annee">Mon année →</button></div>`;
+  zone.querySelector("#bientot-annee").addEventListener("click", () => { ui.vueSaisons = "annee"; allerA("saisons"); });
 }
 
 function rendreCoach() {
   const zone = document.getElementById("coach");
   if (!zone) return;
   const conseils = genererCoaching();
-  const VISIBLES = 4;
+  const VISIBLES = 3;
   const item = (c, i) => `
     <div class="coach-item coach-${c.type}">
       <span class="coach-icone" aria-hidden="true">${c.icone}</span>
@@ -1428,6 +1506,7 @@ function rendreMeteo() {
 
 function rendreRappels() {
   const zone = document.getElementById("rappels");
+  if (!zone) return;
   const groupes = regrouperCultures(listerCultures())
     .filter(c => [...STATUTS_A_RECOLTER, "bientot"].includes(c.statut))
     .sort((a, b) => {
@@ -1448,6 +1527,7 @@ function rendreRappels() {
 
 function rendreTachesDuMois() {
   const zone = document.getElementById("taches-du-mois");
+  if (!zone) return;
   const m = moisCourant();
   const infos = MONTHLY_ADVICE.find(x => x.mois === m);
   const idees = PLANTS_DB.filter(p => p.moisSemis.includes(m) || p.moisPlantation.includes(m));
@@ -1455,8 +1535,8 @@ function rendreTachesDuMois() {
     ${infos ? `<ul class="liste-taches">${infos.court.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
     ${infos && infos.detail ? `<details class="accordeon"><summary>Pourquoi ces gestes en Bretagne ?</summary><p>${esc(infos.detail)}</p></details>` : ""}
     ${idees.length ? `
-      <h3 class="sous-titre-section">À semer ou planter ce mois-ci</h3>
-      <div class="chips">${idees.map(p => `<button class="chip" data-fiche="${p.id}">${iconePlante(p)} ${esc(p.nom)}</button>`).join("")}</div>` : ""}`;
+      <details class="accordeon"><summary>Idées à semer ou planter ce mois-ci</summary>
+      <div class="chips">${idees.map(p => `<button class="chip" data-fiche="${p.id}">${iconePlante(p)} ${esc(p.nom)}</button>`).join("")}</div></details>` : ""}`;
   brancherFiches(zone);
 }
 

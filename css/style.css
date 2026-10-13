@@ -1219,3 +1219,18 @@ button.frise-ligne:hover { background: var(--papier); }
 .cc-actions .bouton-fichier { cursor: pointer; }
 #jn-apercu:empty { display: none; }
 #jn-apercu { margin: 0.4rem 0; }
+
+/* Accueil : le jour, l'instantané du potager, bientôt */
+.carte-jour { background: linear-gradient(160deg, var(--mousse-pale), var(--carte-fond) 70%); }
+.jour-salut { font-family: var(--font-titre); font-size: 1.45rem; font-weight: 600; color: var(--titre); margin-bottom: 0.5rem; }
+.jour-meteo { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.4rem; }
+.jour-icone { font-size: 2rem; line-height: 1; }
+.jour-traits { color: var(--encre-douce); font-size: 0.9rem; }
+.jour-idee { margin: 0.5rem 0 0; color: var(--encre); }
+.inst-ligne { margin-bottom: 0.8rem; }
+.inst-titre { font-weight: 600; font-size: 0.9rem; color: var(--encre-douce); margin-bottom: 0.3rem; }
+.chip-recolte { border-color: var(--cidre-vif); background: var(--cidre-pale); }
+.chip-retard { border-color: var(--alerte); }
+.inst-pied { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; margin-top: 0.4rem; flex-wrap: wrap; }
+.bientot-ligne { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; padding: 0.4rem 0; border-bottom: 1px solid var(--granit-clair); }
+.bientot-ligne:last-of-type { border-bottom: 0; }
