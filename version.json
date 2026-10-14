@@ -1,11 +1,10 @@
 {
-  "version": "27",
+  "version": "28",
   "date": "2026-10-14",
   "nouveautes": [
-    "🍂 Préparer l'hiver : une liste à cocher selon ce qui pousse chez toi (glaïeuls, gingembre, asperges, terre nue…)",
-    "🌻 Bilan de saison : tes avis, l'année en photos et tes envies pour l'an prochain",
-    "✨ Mes envies : note ce que tu veux essayer, le coach te le rappelle au bon moment",
-    "🌼 Fleuri toute l'année : les mois sans fleurs et de quoi les combler (nouvelles : narcisse, tulipe, pensée)",
-    "🐌🐦 Limaces et oiseaux : alertes « temps à limaces » et rappels au bon moment"
+    "Accueil plus léger : une carte « Aujourd'hui » avec les 3 choses qui comptent, météo et gestes du mois repliables",
+    "Saisons en 4 onglets : Mon année, Quoi planter, Rotation, Santé",
+    "↔ Avant / après : compare les photos d'un même bac ou d'une même culture au fil des mois",
+    "Retirés : réserve de graines, récoltes de l'année et frise (tes données restent sauvegardées)"
   ]
 }

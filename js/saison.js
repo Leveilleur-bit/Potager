@@ -94,8 +94,8 @@ function carteHiverHTML() {
     </label>`;
   return `<section class="carte carte-hiver" id="carte-hiver">
     <div class="carte-titre"><h2>${taches.length ? "🍂 Préparer l'hiver" : "🌻 La saison passée"}</h2>${taches.length ? `<span class="carte-sous-titre">${faites.length} sur ${taches.length} fait${faites.length > 1 ? "s" : ""}</span>` : ""}</div>
-    ${taches.length ? `${aFaire.length ? aFaire.slice(0, 4).map(ligne).join("") : `<p class="texte-doux">Tout est prêt pour l'hiver. Bravo !</p>`}
-      ${aFaire.length > 4 ? `<details class="coach-plus"><summary>${aFaire.length - 4} autre${aFaire.length - 4 > 1 ? "s" : ""} geste${aFaire.length - 4 > 1 ? "s" : ""}</summary>${aFaire.slice(4).map(ligne).join("")}</details>` : ""}
+    ${taches.length ? `${aFaire.length ? aFaire.slice(0, 3).map(ligne).join("") : `<p class="texte-doux">Tout est prêt pour l'hiver. Bravo !</p>`}
+      ${aFaire.length > 3 ? `<details class="coach-plus"><summary>${aFaire.length - 3} autre${aFaire.length - 3 > 1 ? "s" : ""} geste${aFaire.length - 3 > 1 ? "s" : ""}</summary>${aFaire.slice(3).map(ligne).join("")}</details>` : ""}
       ${faites.length ? `<details class="coach-plus"><summary>Déjà fait (${faites.length})</summary>${faites.map(ligne).join("")}</details>` : ""}` : ""}
     ${montrerBilan ? `<div class="inst-pied"><button class="btn" id="hv-bilan">🌻 Mon bilan de saison</button><span></span></div>` : ""}
   </section>`;
@@ -255,7 +255,7 @@ function ouvrirBilan(annee = anneeBilan()) {
       ${sansAvis.slice(0, 8).map((t, i) => `<div class="bilan-ligne bilan-avis">${ico(planteParId(t.h.planteId), "1.4em")} <strong>${esc(nomCourt(planteParId(t.h.planteId)))}</strong>
         <span class="bilan-boutons">${Object.entries(AVIS).map(([k, l]) => `<button class="chip" data-bilan-avis="${i}|${k}" aria-label="${esc(l)}">${l.split(" ")[0]}</button>`).join("")}</span></div>`).join("")}` : ""}
     ${!sections && !sansAvis.length && b.cultivees.size ? `<p class="texte-doux petit">Quand tu termines une culture (« Fin de culture »), je te demande comment ça s'est passé : tes avis apparaîtront ici.</p>` : ""}
-    ${b.photos.length ? `<h3 class="sous-titre-section">📷 L'année en photos</h3>
+    ${b.photos.length ? `<h3 class="sous-titre-section">📷 L'année en photos${groupesAvantApres().length ? ` <button class="lien-bouton" id="bl-aa">↔ avant / après</button>` : ""}</h3>
       <div class="bilan-photos">${b.photos.slice(-12).map(x => `<button class="photo-mini" data-bilan-photo="${x.id}" data-entree="${x.entree.id}" aria-label="Voir la photo"><img alt="" data-photo-img="${x.id}"><span>${esc(MOIS_NOMS[+x.entree.date.slice(5, 7) - 1])}</span></button>`).join("")}</div>` : ""}
     <h3 class="sous-titre-section">✨ Pour la saison prochaine</h3>
     <div id="bilan-envies">${listeEnviesHTML()}</div>
@@ -275,6 +275,8 @@ function ouvrirBilan(annee = anneeBilan()) {
     const redessiner = () => { z.innerHTML = listeEnviesHTML(); brancherEnvies(z, redessiner); };
     brancherEnvies(z, redessiner);
     fen.querySelector("#bl-fermer").addEventListener("click", () => { fermerFenetre(); rendre(); });
+    const aa = fen.querySelector("#bl-aa");
+    if (aa) aa.addEventListener("click", () => ouvrirAvantApres());
     fen.querySelector("#bl-annee").addEventListener("click", () => { fermerFenetre(); ui.vueSaisons = "annee"; allerA("saisons"); });
   });
 }
@@ -374,7 +376,7 @@ function conseilFleurs(cultures) {
     const creuxTexte = listeFr(periodes.map(libellePeriode));
     return {
       type: "conseil", icone: "🌼", titre: `Des fleurs ${creuxTexte}`,
-      texte: `Rien ne fleurit chez toi ${creuxTexte}. C'est le moment de planter ${listeFr(maintenant.map(x => nomCourt(x.p).toLowerCase()))} : ${maintenant.length > 1 ? "elles fleuriront" : "elle fleurira"} justement à ce moment-là.`,
+      texte: `Rien ne fleurit chez toi ${creuxTexte}. À planter maintenant pour fleurir justement à ce moment-là : ${listeFr(maintenant.map(x => nomCourt(x.p).toLowerCase()))}.`,
       action: { label: "L'ajouter au potager", ajout: maintenant[0].p.id }
     };
   }
@@ -432,4 +434,71 @@ function conseilsDefense(cultures) {
     });
   }
   return conseils;
+}
+
+/* ---------- Avant / après : le même bac ou la même culture au fil des mois ---------- */
+
+// Bac d'une entrée du journal : noté directement, ou déduit de la culture si elle n'est que dans un bac
+function bacDeEntree(j) {
+  if (j.parcelleId && etat.parcelles.some(p => p.id === j.parcelleId)) return j.parcelleId;
+  if (!j.planteId) return null;
+  const bacs = etat.parcelles.filter(p => Object.values(p.cases).some(l => l.some(c => c.planteId === j.planteId)) || p.historique.some(h => h.planteId === j.planteId));
+  return bacs.length === 1 ? bacs[0].id : null;
+}
+function groupesAvantApres() {
+  const groupes = new Map();
+  const ajouter = (cle, libelle, icone, j) => {
+    if (!groupes.has(cle)) groupes.set(cle, { cle, libelle, icone, photos: [] });
+    j.photos.forEach(id => groupes.get(cle).photos.push({ id, entree: j }));
+  };
+  etat.journal.filter(j => (j.photos || []).length && j.date).forEach(j => {
+    const bac = bacDeEntree(j);
+    if (bac) { const p = etat.parcelles.find(x => x.id === bac); ajouter("b:" + bac, p.nom, "🪴", j); }
+    const pl = j.planteId && planteParId(j.planteId);
+    if (pl) ajouter("p:" + pl.id, nomCourt(pl), ico(pl, "1.3em"), j);
+  });
+  return [...groupes.values()].filter(g => new Set(g.photos.map(x => x.entree.date)).size >= 2)
+    .map(g => ({ ...g, photos: g.photos.sort((a, b) => a.entree.date.localeCompare(b.entree.date)) }))
+    .sort((a, b) => a.cle[0].localeCompare(b.cle[0]) || b.photos.length - a.photos.length);
+}
+function ecartTexte(d1, d2) {
+  const j = joursEntre(parseDate(d1), parseDate(d2));
+  if (j < 14) return j <= 1 ? "le même jour ou presque" : `${j} jours d'écart`;
+  if (j < 60) return `${Math.round(j / 7)} semaines d'écart`;
+  const m = Math.round(j / 30.4);
+  return m < 12 ? `${m} mois d'écart` : `${Math.floor(m / 12)} an${m >= 24 ? "s" : ""}${m % 12 ? " et " + (m % 12) + " mois" : ""} d'écart`;
+}
+
+function ouvrirAvantApres(cle = null, choix = null) {
+  const groupes = groupesAvantApres();
+  if (!groupes.length) {
+    ouvrirFenetre(`<h2>↔ Avant / après</h2>
+      <p>Prends en photo le même bac ou la même culture à plusieurs dates : je les mettrai côte à côte pour voir le potager évoluer.</p>
+      <p class="texte-doux petit">Astuce : en ajoutant une photo, touche la culture ou le bac concerné.</p>
+      <div class="actions-fenetre"><button class="btn" id="aa-fermer">Fermer</button></div>`, fen => fen.querySelector("#aa-fermer").addEventListener("click", fermerFenetre));
+    return;
+  }
+  const g = groupes.find(x => x.cle === cle) || groupes[0];
+  const n = g.photos.length;
+  let [ia, ib] = choix && choix[0] < n && choix[1] < n ? choix : [0, n - 1];
+  const A = g.photos[ia], B = g.photos[ib];
+  const figure = (x, titre) => `<figure><div class="aa-img photo-mini"><img alt="${titre}" data-photo-img="${x.id}"></div>
+    <figcaption><strong>${titre}</strong> · ${esc(formatDate(parseDate(x.entree.date)))}${x.entree.texte && !/^Photo/.test(x.entree.texte) ? `<br>${esc(x.entree.texte)}` : ""}</figcaption></figure>`;
+  ouvrirFenetre(`
+    <h2>↔ Avant / après</h2>
+    <div class="chips">${groupes.map(x => `<button class="chip${x.cle === g.cle ? " actif" : ""}" data-aa-groupe="${esc(x.cle)}">${x.icone} ${esc(x.libelle)}</button>`).join("")}</div>
+    <div class="avant-apres">${figure(A, "Avant")}${figure(B, "Après")}</div>
+    <p class="texte-doux petit" style="text-align:center">${esc(ecartTexte(A.entree.date, B.entree.date))}</p>
+    ${n > 2 ? `<p class="texte-doux petit">Touche une photo pour changer la comparaison :</p>
+      <div class="aa-bande">${g.photos.map((x, i) => `<button class="photo-mini${i === ia ? " choisie-a" : i === ib ? " choisie-b" : ""}" data-aa="${i}" aria-label="Photo du ${esc(x.entree.date)}"><img alt="" data-photo-img="${x.id}"></button>`).join("")}</div>` : ""}
+    <div class="actions-fenetre"><button class="btn" id="aa-fermer">Fermer</button></div>`, fen => {
+    chargerMiniatures(fen);
+    fen.querySelectorAll("[data-aa-groupe]").forEach(b => b.addEventListener("click", () => ouvrirAvantApres(b.dataset.aaGroupe)));
+    fen.querySelectorAll("[data-aa]").forEach(b => b.addEventListener("click", () => {
+      const i = +b.dataset.aa;
+      if (i === ia || i === ib) return;
+      ouvrirAvantApres(g.cle, i < ib ? [i, ib] : [ia, i]);
+    }));
+    fen.querySelector("#aa-fermer").addEventListener("click", fermerFenetre);
+  });
 }

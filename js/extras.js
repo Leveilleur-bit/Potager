@@ -366,91 +366,6 @@ function rendreRotation(zone) {
 }
 
 /* ============================================================
-   Frise de l'année : toutes les cultures sur une même page
-   ============================================================ */
-
-function finEstimee(plante, debut, fenetre) {
-  if (fenetre) return fenetre.fin;
-  const ms = plante.moisRecolte || [];
-  const m0 = debut.getMonth(); // 0..11
-  let k = 0;
-  while (k < 12 && !ms.includes(((m0 + k) % 12) + 1)) k++;
-  if (k === 12) return ajouterJours(debut, 60);
-  let fin = k;
-  while (fin < 12 && ms.includes(((m0 + fin) % 12) + 1)) fin++;
-  return new Date(debut.getFullYear(), m0 + fin, 0);
-}
-
-function rendreFrise(zone) {
-  const an = ui.anneeFrise;
-  const debutAn = new Date(an, 0, 1), finAn = new Date(an + 1, 0, 1);
-  const total = finAn - debutAn;
-  const pct = d => clamp(((d - debutAn) / total) * 100, 0, 100);
-
-  const lignesParcelle = new Map();
-  const nouvelle = (parcelle, ligne) => {
-    if (!lignesParcelle.has(parcelle.id)) lignesParcelle.set(parcelle.id, { parcelle, lignes: [] });
-    lignesParcelle.get(parcelle.id).lignes.push(ligne);
-  };
-
-  regrouperCultures(listerCultures()).forEach(g => {
-    const debut = g.datePlantation, fin = finEstimee(g.plante, debut, g.fenetre);
-    if (fin < debutAn || debut >= finAn) return;
-    nouvelle(g.parcelle, { plante: g.plante, debut, fin, n: g.cases.length, projet: false, ouvrir: () => { const [x, y] = g.cases[0].split("-").map(Number); ouvrirEditeurCase(g.parcelle.id, x, y, { editId: g.contenu.id }); } });
-  });
-
-  const projets = etat.projets.filter(pr => !pr.fait).map(pr => {
-    const plante = planteParId(pr.planteId);
-    if (!plante) return null;
-    const [a, m] = pr.mois.split("-").map(Number);
-    const debut = new Date(a, m - 1, Math.max(1, a === new Date().getFullYear() && m === moisCourant() ? new Date().getDate() : 1));
-    const fenetre = fenetreRecolte(plante, debut);
-    return { plante, debut, fin: finEstimee(plante, debut, fenetre), n: 1, projet: true, ouvrir: () => ouvrirFichePlante(plante.id) };
-  }).filter(l => l && l.fin >= debutAn && l.debut < finAn);
-
-  const entete = `
-    <div class="frise-ligne frise-entete"><span class="frise-etiq"></span>
-      <div class="frise-piste">${MOIS_INITIALES.map(l => `<span>${l}</span>`).join("")}</div></div>`;
-  const aujourdhuiPct = new Date().getFullYear() === an ? pct(aujourdhui()) : null;
-  const barres = l => {
-    const gauche = pct(l.debut), droite = pct(l.fin);
-    const couleur = familleDe(l.plante).color;
-    return `<button class="frise-ligne" data-ligne="${l.cle}">
-      <span class="frise-etiq">${ico(l.plante, "1.4em")} ${esc(nomCourt(l.plante))}${l.n > 1 ? ` <small>×${l.n}</small>` : ""}</span>
-      <div class="frise-piste"><span class="frise-barre${l.projet ? " projet" : ""}" style="left:${gauche}%;width:${Math.max(droite - gauche, 1.2)}%;--couleur:${couleur}"></span>
-      ${aujourdhuiPct !== null ? `<span class="frise-aujourdhui" style="left:${aujourdhuiPct}%"></span>` : ""}</div></button>`;
-  };
-
-  const actions = [];
-  const blocs = [...lignesParcelle.values()].map(({ parcelle, lignes }) => {
-    lignes.sort((a, b) => a.debut - b.debut).forEach(l => { l.cle = actions.length; actions.push(l.ouvrir); });
-    return `<section class="carte"><div class="carte-titre"><h2>${esc(parcelle.nom)}</h2></div>
-      <div class="frise">${entete}${lignes.map(barres).join("")}</div></section>`;
-  });
-  let blocProjets = "";
-  if (projets.length) {
-    projets.sort((a, b) => a.debut - b.debut).forEach(l => { l.cle = actions.length; actions.push(l.ouvrir); });
-    blocProjets = `<section class="carte"><div class="carte-titre"><h2>Prévu dans mon plan</h2></div>
-      <div class="frise">${entete}${projets.map(barres).join("")}</div></section>`;
-  }
-
-  zone.innerHTML = `
-    <section class="carte">
-      <div class="frise-nav">
-        <button class="btn-discret" id="fr-prec" aria-label="Année précédente">‹</button>
-        <h2>${an}</h2>
-        <button class="btn-discret" id="fr-suiv" aria-label="Année suivante">›</button>
-      </div>
-      <p class="texte-doux petit">Chaque barre va du semis ou de la plantation jusqu'à la fin de la récolte estimée. Les barres hachurées sont celles de ton plan. Touche une ligne pour ouvrir la case ou la fiche.</p>
-    </section>
-    ${blocs.join("")}${blocProjets}
-    ${!blocs.length && !blocProjets ? `<section class="carte"><p class="vide">Rien à afficher en ${an}. Plante quelque chose ou ajoute des cultures à ton plan.</p></section>` : ""}`;
-  zone.querySelector("#fr-prec").addEventListener("click", () => { ui.anneeFrise--; rendreFrise(zone); });
-  zone.querySelector("#fr-suiv").addEventListener("click", () => { ui.anneeFrise++; rendreFrise(zone); });
-  zone.querySelectorAll("[data-ligne]").forEach(b => b.addEventListener("click", () => actions[+b.dataset.ligne]()));
-}
-
-/* ============================================================
    Graines : réserve et liste de courses
    ============================================================ */
 
@@ -459,89 +374,21 @@ function grainesUtilisables(planteId) {
   return etat.graines.some(g => g.planteId === planteId && (!g.peremption || g.peremption >= an));
 }
 
-function ouvrirFormGraine(id = null, planteIdPrefill = "") {
-  const g = id ? etat.graines.find(x => x.id === id) : null;
-  const trie = PLANTS_DB.slice().sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
-  const valPlante = g ? g.planteId : planteIdPrefill;
-  ouvrirFenetre(`
-    <h2>${g ? "Modifier" : "Ajouter"} des graines</h2>
-    <label for="gr-plante">Plante</label>
-    <select id="gr-plante">
-      <option value="">— Autre (je saisis le nom) —</option>
-      ${trie.map(p => `<option value="${p.id}"${p.id === valPlante ? " selected" : ""}>${iconePlante(p)} ${esc(p.nom)}</option>`).join("")}
-    </select>
-    <div id="gr-nom-zone"><label for="gr-nom">Nom</label>
-      <input id="gr-nom" type="text" maxlength="60" value="${esc(g ? g.nom : "")}" placeholder="ex. Cosmos mélange"></div>
-    <div class="ligne-champs deux">
-      <div><label for="gr-variete">Variété</label><input id="gr-variete" type="text" maxlength="60" value="${esc(g ? g.variete : "")}" placeholder="ex. Cœur de bœuf"></div>
-      <div><label for="gr-quantite">Quantité</label><input id="gr-quantite" type="text" maxlength="40" value="${esc(g ? g.quantite : "")}" placeholder="ex. 1 sachet"></div>
-    </div>
-    <div class="ligne-champs deux">
-      <div><label for="gr-peremption">À utiliser avant (année)</label><input id="gr-peremption" type="number" min="2000" max="2100" step="1" inputmode="numeric" value="${g && g.peremption ? g.peremption : ""}"></div>
-      <div><label for="gr-note">Remarque</label><input id="gr-note" type="text" maxlength="120" value="${esc(g ? g.note : "")}"></div>
-    </div>
-    <div class="actions-fenetre">
-      <button class="btn" id="gr-ok">Enregistrer</button>
-      <button class="btn-discret" id="gr-annuler">Annuler</button>
-    </div>`, fen => {
-    const sel = fen.querySelector("#gr-plante"), zoneNom = fen.querySelector("#gr-nom-zone");
-    const maj = () => { zoneNom.hidden = !!sel.value; };
-    sel.addEventListener("change", maj); maj();
-    fen.querySelector("#gr-annuler").addEventListener("click", fermerFenetre);
-    fen.querySelector("#gr-ok").addEventListener("click", () => {
-      const planteId = sel.value, nom = fen.querySelector("#gr-nom").value.trim();
-      if (!planteId && !nom) { fen.querySelector("#gr-nom").focus(); return; }
-      const donnees = {
-        planteId, nom: planteId ? "" : nom,
-        variete: fen.querySelector("#gr-variete").value.trim(), quantite: fen.querySelector("#gr-quantite").value.trim(),
-        peremption: parseInt(fen.querySelector("#gr-peremption").value, 10) || null, note: fen.querySelector("#gr-note").value.trim()
-      };
-      fermerFenetre();
-      avecAnnulation(g ? "Graines modifiées." : "Graines ajoutées à ta réserve.", () => {
-        if (g) Object.assign(g, donnees); else etat.graines.push({ id: creerId(), ...donnees });
-      });
-    });
-  });
-}
-
+// Liste de courses (la réserve de graines n'est plus affichée depuis la v28 ; les données restent dans la sauvegarde)
 function rendreGraines(zone) {
-  const an = new Date().getFullYear();
-  const nomGraine = g => { const p = planteParId(g.planteId); return p ? p.nom : g.nom; };
-  const lignes = etat.graines.slice().sort((a, b) => nomGraine(a).localeCompare(nomGraine(b), "fr")).map(g => {
-    const p = planteParId(g.planteId);
-    const perime = g.peremption && g.peremption < an, bientot = g.peremption === an;
-    return `<div class="graine">
-      <span class="graine-icone">${p ? ico(p, "1.6em") : "🌰"}</span>
-      <div class="graine-corps">
-        <div class="ligne-titre">${esc(nomGraine(g))}${g.variete ? ` <span class="texte-doux">— ${esc(g.variete)}</span>` : ""}</div>
-        <div class="ligne-detail">${[g.quantite, g.peremption ? "avant " + g.peremption : "", g.note].filter(Boolean).map(esc).join(" · ") || "&nbsp;"}</div>
-        ${perime ? `<span class="etat etat-retard">périmées : à racheter</span>` : bientot ? `<span class="etat etat-bientot">à utiliser cette année</span>` : ""}
-      </div>
-      <div class="graine-actions">
-        <button class="btn-discret" data-gedit="${g.id}">Modifier</button>
-        <button class="btn-icone" data-gsuppr="${g.id}" aria-label="Supprimer">✕</button>
-      </div>
-    </div>`;
-  }).join("");
-
-  const aAcheter = etat.projets.filter(pr => !pr.fait && planteParId(pr.planteId) && !grainesUtilisables(pr.planteId));
+  const aAcheter = etat.projets.filter(pr => !pr.fait && !pr.achete && planteParId(pr.planteId) && !grainesUtilisables(pr.planteId));
   const vus = new Set();
   const autoLignes = aAcheter.filter(pr => !vus.has(pr.planteId) && vus.add(pr.planteId));
   const manuelles = etat.courses;
 
   zone.innerHTML = `
     <section class="carte">
-      <div class="carte-titre"><h2>Ma réserve de graines</h2><span class="carte-sous-titre">${etat.graines.length} sachet${etat.graines.length > 1 ? "s" : ""}</span></div>
-      ${lignes || `<p class="vide">Aucune graine notée. Ajoute tes sachets pour savoir ce qu'il te reste et ce qui est périmé.</p>`}
-      <button class="btn" id="gr-ajouter">+ Ajouter des graines</button>
-    </section>
-    <section class="carte">
       <div class="carte-titre"><h2>Liste de courses</h2></div>
       ${autoLignes.length ? `<h3 class="sous-titre-section">Pour mon plan</h3>${autoLignes.map(pr => {
         const p = planteParId(pr.planteId);
-        return `<div class="course"><span>${ico(p, "1.4em")} <strong>${esc(nomCourt(p))}</strong> <small class="texte-doux">prévu en ${esc(nomMoisCle(pr.mois))}${etat.graines.some(g => g.planteId === p.id) ? ", graines périmées" : ""}</small></span>
-          <button class="btn-discret" data-jen="${p.id}">J'en ai</button></div>`;
-      }).join("")}` : (etat.projets.some(pr => !pr.fait) ? `<p class="texte-doux petit">✓ Tu as des graines pour tout ce qui est dans ton plan.</p>` : `<p class="texte-doux petit">Ajoute des cultures à ton plan (onglet Saisons) : ce qui te manque apparaîtra ici.</p>`)}
+        return `<div class="course"><span>${ico(p, "1.4em")} <strong>${esc(nomCourt(p))}</strong> <small class="texte-doux">prévu en ${esc(nomMoisCle(pr.mois))}</small></span>
+          <button class="btn-discret" data-jen="${p.id}">J'ai ce qu'il faut</button></div>`;
+      }).join("")}` : (etat.projets.some(pr => !pr.fait) ? `<p class="texte-doux petit">✓ Tu as tout ce qu'il faut pour ton plan.</p>` : `<p class="texte-doux petit">Ajoute des cultures à ton plan (onglet Saisons) : ce qui te manque apparaîtra ici.</p>`)}
       <h3 class="sous-titre-section">Mes autres achats</h3>
       ${manuelles.map(c => `<label class="course"><span><input type="checkbox" data-cfait="${c.id}"${c.fait ? " checked" : ""}> <span class="${c.fait ? "barre" : ""}">${esc(c.texte)}</span></span>
         <button class="btn-icone" data-csuppr="${c.id}" aria-label="Supprimer">✕</button></label>`).join("")}
@@ -555,11 +402,8 @@ function rendreGraines(zone) {
       </div>
     </section>`;
 
-  zone.querySelector("#gr-ajouter").addEventListener("click", () => ouvrirFormGraine());
-  zone.querySelectorAll("[data-gedit]").forEach(b => b.addEventListener("click", () => ouvrirFormGraine(b.dataset.gedit)));
-  zone.querySelectorAll("[data-gsuppr]").forEach(b => b.addEventListener("click", () =>
-    avecAnnulation("Graines supprimées.", () => { etat.graines = etat.graines.filter(g => g.id !== b.dataset.gsuppr); })));
-  zone.querySelectorAll("[data-jen]").forEach(b => b.addEventListener("click", () => ouvrirFormGraine(null, b.dataset.jen)));
+  zone.querySelectorAll("[data-jen]").forEach(b => b.addEventListener("click", () =>
+    avecAnnulation("Noté : rien à acheter pour celle-ci.", () => etat.projets.forEach(pr => { if (pr.planteId === b.dataset.jen) pr.achete = true; }))));
   zone.querySelector("#cs-form").addEventListener("submit", e => {
     e.preventDefault();
     const t = zone.querySelector("#cs-texte").value.trim();

@@ -113,7 +113,7 @@ function notificationsPossibles() { return "Notification" in window && "serviceW
 function ecrireResumeMatin() {
   if (!lireNotif().actif) return;
   let conseils = [];
-  try { conseils = genererCoaching().slice(0, 3).map(c => ({ titre: c.titre, texte: c.texte })); } catch (e) { return; }
+  try { conseils = coachingTrie().slice(0, 3).map(c => ({ titre: c.titre, texte: c.texte })); } catch (e) { return; }
   const req = indexedDB.open("potagerBretonNotif", 1);
   req.onupgradeneeded = () => req.result.createObjectStore("resume");
   req.onsuccess = () => {
@@ -143,7 +143,7 @@ async function desactiverNotifications() {
 }
 async function notificationTest() {
   const reg = await navigator.serviceWorker.ready;
-  const c = genererCoaching()[0];
+  const c = coachingTrie()[0];
   await reg.showNotification("Ce matin au jardin", { body: c ? c.titre : "Rien d'urgent : profite du jardin !", icon: "icon-192.png", badge: "icon-192.png", tag: "potager-matin" });
 }
 

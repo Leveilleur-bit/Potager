@@ -201,15 +201,22 @@ function ouvrirPhotoRapide(fichiers) {
     <div class="photos-entree" id="pr-apercu">${liste.map(() => `<span class="photo-mini grande"><img alt="Aperçu"></span>`).join("")}</div>
     <label for="pr-plante">C'est quelle culture ? (facultatif)</label>
     <div class="chips" id="pr-plantes">${ids.map(p => `<button type="button" class="chip" data-pr="${p.id}">${ico(p, "1.3em")} ${esc(nomCourt(p))}</button>`).join("") || `<span class="texte-doux petit">Aucune culture enregistrée.</span>`}</div>
+    ${etat.parcelles.length > 1 ? `<label>Dans quel bac ? (facultatif, pour comparer avant / après)</label>
+    <div class="chips" id="pr-bacs">${etat.parcelles.map(p => `<button type="button" class="chip" data-pr-bac="${p.id}">🪴 ${esc(p.nom)}</button>`).join("")}</div>` : ""}
     <label for="pr-legende">Légende (facultatif)</label>
     <input id="pr-legende" type="text" maxlength="140" placeholder="ex. premières fleurs, attaque de limaces…">
     <div class="actions-fenetre"><button class="btn" id="pr-ok">Enregistrer</button><button class="btn-discret" id="pr-annuler">Annuler</button></div>`, fen => {
     fen.querySelectorAll("#pr-apercu img").forEach((img, i) => { img.src = URL.createObjectURL(liste[i]); });
-    let planteId = null;
+    let planteId = null, bacId = etat.parcelles.length === 1 ? etat.parcelles[0].id : null;
+    const majBacs = () => fen.querySelectorAll("[data-pr-bac]").forEach(x => x.classList.toggle("actif", x.dataset.prBac === bacId));
     fen.querySelectorAll("[data-pr]").forEach(b => b.addEventListener("click", () => {
       planteId = planteId === b.dataset.pr ? null : b.dataset.pr;
       fen.querySelectorAll("[data-pr]").forEach(x => x.classList.toggle("actif", x.dataset.pr === planteId));
+      // la culture n'est que dans un bac : on le coche pour toi
+      const bacs = planteId ? etat.parcelles.filter(p => Object.values(p.cases).some(l => l.some(c => c.planteId === planteId))) : [];
+      if (bacs.length === 1) { bacId = bacs[0].id; majBacs(); }
     }));
+    fen.querySelectorAll("[data-pr-bac]").forEach(b => b.addEventListener("click", () => { bacId = bacId === b.dataset.prBac ? null : b.dataset.prBac; majBacs(); }));
     fen.querySelector("#pr-annuler").addEventListener("click", fermerFenetre);
     fen.querySelector("#pr-ok").addEventListener("click", async () => {
       const b = fen.querySelector("#pr-ok"); b.disabled = true; b.textContent = "Enregistrement…";
@@ -220,6 +227,7 @@ function ouvrirPhotoRapide(fichiers) {
       const pl = planteParId(planteId);
       const entree = { id: creerId(), date: isoLocal(), type: "note", texte: legende || (pl ? "Photo : " + pl.nom : "Photo"), photos };
       if (pl) entree.planteId = pl.id;
+      if (bacId) entree.parcelleId = bacId;
       etat.journal.unshift(entree);
       sauvegarder(); fermerFenetre(); rendre();
       toast("Photo ajoutée au journal.");

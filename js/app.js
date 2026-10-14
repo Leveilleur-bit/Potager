@@ -10,7 +10,7 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "27";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const VERSION_APP = "28";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
 const DATE_VERSION_APP = "2026-10-14";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
@@ -88,7 +88,8 @@ const ui = {
   filtreCategorie: "toutes",
   moisSaisons: moisCourant(),
   rechercheSaisons: "",
-  vueSaisons: "plan",
+  vueSaisons: "annee",
+  modePlanter: "mois",
   ouverts: new Set(),
   filtrePlan: "toutes",
   vueCultures: "cultures",
@@ -225,7 +226,7 @@ function migrer(e) {
   // Projets : cultures que l'on prévoit de lancer (coach des 3 mois)
   e.projets = (Array.isArray(e.projets) ? e.projets : [])
     .filter(pr => pr && PLANTS_DB.some(p => p.id === pr.planteId) && /^\d{4}-\d{2}$/.test(pr.mois || ""))
-    .map(pr => ({ id: pr.id || creerId(), planteId: pr.planteId, mois: pr.mois, fait: !!pr.fait }));
+    .map(pr => ({ id: pr.id || creerId(), planteId: pr.planteId, mois: pr.mois, fait: !!pr.fait, ...(pr.achete ? { achete: true } : {}) }));
   // Envies pour la saison prochaine et gestes d'hivernage cochés
   e.envies = (Array.isArray(e.envies) ? e.envies : []).filter(v => v && (v.planteId || v.texte))
     .map(v => ({ id: v.id || creerId(), planteId: v.planteId && PLANTS_DB.some(p => p.id === v.planteId) ? v.planteId : null, texte: String(v.texte || "").slice(0, 80), cree: typeof v.cree === "string" ? v.cree : null, ...(v.fait ? { fait: true } : {}) }))
@@ -1068,7 +1069,7 @@ function conseilsDuPlan() {
       conseils.push({
         type: dernier ? "alerte" : "conseil", icone: dernier ? "⏳" : "🌱",
         titre: `${dernier ? "Dernier mois pour " + verbe : "À " + verbe + " ce mois-ci"} : ${plante.nom}`,
-        texte: `C'est dans ton plan.${nomEmpl(e)}${etat.graines.length && !etat.graines.some(g => g.planteId === plante.id) ? " Tu n'as pas de graines ou de plants en stock : pense à en acheter." : ""}${plante.conseilCourt ? " " + plante.conseilCourt : ""}`,
+        texte: `C'est dans ton plan.${nomEmpl(e)}${plante.conseilCourt ? " " + plante.conseilCourt : ""}`,
         action: e ? { label: "Planter", parcelle: e.parcelle.id, coord: e.x + "-" + e.y, plante: plante.id } : { label: "Voir le plan", vue: "saisons", sousVue: "plan" }
       });
     } else {
@@ -1432,9 +1433,9 @@ function rendreAccueil() {
   const vue = document.getElementById("vue-accueil");
   const m = moisCourant();
   vue.innerHTML = `
-    <section class="carte carte-jour" id="jour"></section>
-    <section class="carte">
-      <div class="carte-titre"><h2>🧑‍🌾 Le coach</h2><span class="carte-sous-titre">cette semaine</span></div>
+    <section class="carte carte-jour carte-aujourdhui">
+      <div id="jour"></div>
+      <div class="carte-titre titre-coach"><h2>🧑‍🌾 Le coach</h2><span class="carte-sous-titre">aujourd'hui</span></div>
       <div id="coach"></div>
     </section>
     ${typeof carteHiverHTML === "function" ? carteHiverHTML() : ""}
@@ -1446,14 +1447,15 @@ function rendreAccueil() {
       <div class="carte-titre"><h2>Bientôt</h2></div>
       <div id="bientot"></div>
     </section>
-    <section class="carte">
-      <div class="carte-titre"><h2>Les prochains jours</h2><span class="carte-sous-titre" id="meteo-lieu"></span></div>
+    <details class="carte carte-repliable" data-repli="meteo"${repliOuvert("meteo") ? " open" : ""}>
+      <summary class="carte-titre"><h2>☁️ Les prochains jours</h2><span class="carte-sous-titre" id="meteo-lieu"></span></summary>
       <div id="meteo"></div>
-    </section>
-    <section class="carte">
-      <div class="carte-titre"><h2>Les gestes ${/^[aeiou]/i.test(MOIS_NOMS[m - 1]) ? "d'" : "de "}${MOIS_NOMS[m - 1]}</h2></div>
+    </details>
+    <details class="carte carte-repliable" data-repli="gestes"${repliOuvert("gestes") ? " open" : ""}>
+      <summary class="carte-titre"><h2>📋 Les gestes ${/^[aeiou]/i.test(MOIS_NOMS[m - 1]) ? "d'" : "de "}${MOIS_NOMS[m - 1]}</h2></summary>
       <div id="taches-du-mois"></div>
-    </section>`;
+    </details>`;
+  vue.querySelectorAll("details[data-repli]").forEach(d => d.addEventListener("toggle", () => memoriserRepli(d.dataset.repli, d.open)));
 
   rendreJour();
   rendreCoach();
@@ -1465,6 +1467,11 @@ function rendreAccueil() {
   rendreTachesDuMois();
   actualiserMeteo();
 }
+
+// Cartes repliables de l'accueil : ouvertes ou fermées, mémorisé sur cet appareil
+function lireReplis() { try { return JSON.parse(localStorage.getItem("potagerBretonReplis") || "{}"); } catch (e) { return {}; } }
+function repliOuvert(cle) { return !!lireReplis()[cle]; }
+function memoriserRepli(cle, ouvert) { try { const r = lireReplis(); r[cle] = ouvert; localStorage.setItem("potagerBretonReplis", JSON.stringify(r)); } catch (e) { /* rien */ } }
 
 // Bandeau du jour : salutation, temps qu'il fait, idée de saison
 function rendreJour() {
@@ -1485,12 +1492,9 @@ function rendreJour() {
   } else if (!etat.reglages.lieu) {
     temps = `<button class="lien-bouton" id="jour-commune">☁️ Ajoute ta commune pour avoir la météo du jardin</button>`;
   }
-  const infos = MONTHLY_ADVICE.find(x => x.mois === moisCourant());
-  const idee = infos && infos.court.length ? infos.court[new Date().getDate() % infos.court.length] : "";
   zone.innerHTML = `
     <div class="jour-salut">${salut} 🌿</div>
-    ${temps}
-    ${idee ? `<p class="jour-idee">💡 ${esc(idee)}</p>` : ""}`;
+    ${temps}`;
   const b = zone.querySelector("#jour-commune");
   if (b) b.addEventListener("click", () => allerA("reglages"));
 }
@@ -1552,10 +1556,16 @@ function rendreBientot() {
   zone.querySelector("#bientot-annee").addEventListener("click", () => { ui.vueSaisons = "annee"; allerA("saisons"); });
 }
 
+// Les alertes d'abord, puis les conseils, l'astuce en dernier : les 3 premiers font « aujourd'hui » (et la notification du matin)
+function coachingTrie() {
+  const RANG = { alerte: 0, conseil: 1, astuce: 2 };
+  return genererCoaching().map((c, i) => [c, i]).sort((a, b) => (RANG[a[0].type] ?? 1) - (RANG[b[0].type] ?? 1) || a[1] - b[1]).map(x => x[0]);
+}
+
 function rendreCoach() {
   const zone = document.getElementById("coach");
   if (!zone) return;
-  const conseils = genererCoaching();
+  const conseils = coachingTrie();
   const VISIBLES = 3;
   const item = (c, i) => `
     <div class="coach-item coach-${c.type}">
@@ -1569,7 +1579,7 @@ function rendreCoach() {
   const reste = conseils.length - VISIBLES;
   zone.innerHTML = conseils.slice(0, VISIBLES).map(item).join("") + (reste > 0 ? `
     <details class="coach-plus">
-      <summary>${reste} autre${reste > 1 ? "s" : ""} conseil${reste > 1 ? "s" : ""}</summary>
+      <summary>${reste} autre${reste > 1 ? "s" : ""} conseil${reste > 1 ? "s" : ""}, moins urgent${reste > 1 ? "s" : ""}</summary>
       ${conseils.slice(VISIBLES).map((c, i) => item(c, i + VISIBLES)).join("")}
     </details>` : "");
   zone.querySelectorAll("[data-coach]").forEach(b => b.addEventListener("click", () => {
@@ -2279,7 +2289,7 @@ function rendreCultures() {
     <section class="carte carte-onglets">
       <div class="onglets-internes" role="tablist">
         <button role="tab" aria-selected="${ui.vueCultures === "cultures"}" data-vc="cultures">Mes cultures</button>
-        <button role="tab" aria-selected="${ui.vueCultures === "graines"}" data-vc="graines">Graines et courses</button>
+        <button role="tab" aria-selected="${ui.vueCultures === "graines"}" data-vc="graines">Liste de courses</button>
       </div>
     </section>
     ${ui.vueCultures === "graines" ? "" : `<button class="btn btn-ajout-culture" id="cu-ajout">＋ Ajouter une culture</button>`}
@@ -2316,43 +2326,50 @@ function rendreCultures() {
    Onglet Saisons (idées, calendrier, fiches)
    ============================================================ */
 
+// Anciennes sous-vues (avant la v28) ramenées aux 4 onglets actuels
+const SOUS_VUES_SAISONS = { plan: "annee", annee: "annee", frise: "annee", mois: "planter", calendrier: "planter", planter: "planter", rotation: "rotation", sante: "sante" };
 function rendreSaisons() {
   const vue = document.getElementById("vue-saisons");
+  if (ui.vueSaisons === "calendrier") ui.modePlanter = "calendrier";
+  else if (ui.vueSaisons === "mois") ui.modePlanter = "mois";
+  ui.vueSaisons = SOUS_VUES_SAISONS[ui.vueSaisons] || "annee";
   const categories = [["toutes", "Tout"], ["legume", "🥕 Légumes"], ["fruit", "🍓 Fruits"], ["aromate", "🌿 Aromates"], ["fleur", "🌼 Fleurs"]];
   const onglets = `
       <div class="onglets-internes" role="tablist">
-        <button role="tab" aria-selected="${ui.vueSaisons === "plan"}" data-vs="plan">Plan 3 mois</button>
         <button role="tab" aria-selected="${ui.vueSaisons === "annee"}" data-vs="annee">Mon année</button>
-        <button role="tab" aria-selected="${ui.vueSaisons === "mois"}" data-vs="mois">Mois par mois</button>
-        <button role="tab" aria-selected="${ui.vueSaisons === "calendrier"}" data-vs="calendrier">Calendrier</button>
-        <button role="tab" aria-selected="${ui.vueSaisons === "frise"}" data-vs="frise">Frise</button>
+        <button role="tab" aria-selected="${ui.vueSaisons === "planter"}" data-vs="planter">Quoi planter</button>
         <button role="tab" aria-selected="${ui.vueSaisons === "rotation"}" data-vs="rotation">Rotation</button>
         <button role="tab" aria-selected="${ui.vueSaisons === "sante"}" data-vs="sante">Santé</button>
       </div>`;
   const brancherOnglets = () => vue.querySelectorAll("[data-vs]").forEach(b => b.addEventListener("click", () => { ui.vueSaisons = b.dataset.vs; rendreSaisons(); }));
 
-  if (ui.vueSaisons === "plan" || ui.vueSaisons === "annee") {
+  if (ui.vueSaisons === "annee") {
     const defilement = window.scrollY;
     vue.innerHTML = `<section class="carte carte-onglets">${onglets}</section><div id="plan3-contenu"></div>`;
     brancherOnglets();
-    rendrePlanTroisMois(vue.querySelector("#plan3-contenu"), ui.vueSaisons === "annee");
+    rendrePlanTroisMois(vue.querySelector("#plan3-contenu"), true);
     window.scrollTo(0, defilement);
     return;
   }
-  if (ui.vueSaisons === "frise" || ui.vueSaisons === "rotation" || ui.vueSaisons === "sante") {
+  if (ui.vueSaisons === "rotation" || ui.vueSaisons === "sante") {
     vue.innerHTML = `<section class="carte carte-onglets">${onglets}</section><div id="saisons-extra"></div>`;
     brancherOnglets();
     const zone = vue.querySelector("#saisons-extra");
-    if (ui.vueSaisons === "frise") rendreFrise(zone); else if (ui.vueSaisons === "sante") rendreSante(zone); else rendreRotation(zone);
+    if (ui.vueSaisons === "sante") rendreSante(zone); else rendreRotation(zone);
     return;
   }
+  const mode = ui.modePlanter === "calendrier" ? "calendrier" : "mois";
   vue.innerHTML = `
+    <section class="carte carte-onglets">${onglets}</section>
     <section class="carte">
-      ${onglets}
+      <div class="chips choix-mode">
+        <button class="chip${mode === "mois" ? " actif" : ""}" data-mode-planter="mois">📅 Mois par mois</button>
+        <button class="chip${mode === "calendrier" ? " actif" : ""}" data-mode-planter="calendrier">🗓️ Calendrier de l'année</button>
+      </div>
       <div class="ligne-champs deux">
         <div><label for="rs-recherche">Rechercher une plante</label>
           <input type="search" id="rs-recherche" placeholder="ex. tomate" value="${esc(ui.rechercheSaisons)}"></div>
-        ${ui.vueSaisons === "mois" ? `<div><label for="rs-mois">Mois</label>
+        ${mode === "mois" ? `<div><label for="rs-mois">Mois</label>
           <select id="rs-mois">${MOIS_NOMS.map((n, i) => `<option value="${i + 1}"${i + 1 === ui.moisSaisons ? " selected" : ""}>${majuscule(n)}</option>`).join("")}</select></div>` : ""}
       </div>
       <div class="chips">${categories.map(([id, label]) =>
@@ -2361,6 +2378,7 @@ function rendreSaisons() {
     <div id="saisons-contenu"></div>`;
 
   brancherOnglets();
+  vue.querySelectorAll("[data-mode-planter]").forEach(b => b.addEventListener("click", () => { ui.modePlanter = b.dataset.modePlanter; rendreSaisons(); }));
   vue.querySelectorAll("[data-cat]").forEach(b => b.addEventListener("click", () => { ui.filtreCategorie = b.dataset.cat; rendreSaisons(); }));
   const mois = vue.querySelector("#rs-mois");
   if (mois) mois.addEventListener("change", () => { ui.moisSaisons = +mois.value; rendreContenuSaisons(); });
@@ -2379,7 +2397,7 @@ function plantesFiltrees() {
 function rendreContenuSaisons() {
   const zone = document.getElementById("saisons-contenu");
   const plantes = plantesFiltrees();
-  if (ui.vueSaisons === "calendrier") {
+  if (ui.modePlanter === "calendrier") {
     const m = moisCourant();
     zone.innerHTML = `<section class="carte">
       ${LEGENDE_CALENDRIER}
@@ -2483,22 +2501,15 @@ function listeJournalHTML() {
 
 function rendreJournal() {
   const vue = document.getElementById("vue-journal");
-  const annee = new Date().getFullYear();
-  const recoltes = etat.journal.filter(j => j.type === "recolte" && j.quantite && parseDate(j.date).getFullYear() === annee);
-  const totaux = {};
-  recoltes.forEach(r => {
-    const nom = planteParId(r.planteId) ? planteParId(r.planteId).nom : "Autre";
-    const unite = r.unite === "g" ? "kg" : r.unite;
-    const q = r.unite === "g" ? r.quantite / 1000 : r.quantite;
-    const cle = nom + "|" + unite;
-    totaux[cle] = (totaux[cle] || 0) + q;
-  });
   const m = moisCourant();
 
   vue.innerHTML = `
     <section class="carte">
       <div class="carte-titre"><h2>Mon journal de jardin</h2></div>
-      <label class="btn btn-photo-rapide">📷 Ajouter une photo<input type="file" id="jn-photo-rapide" accept="image/*" multiple hidden></label>
+      <div class="journal-actions">
+        <label class="btn btn-photo-rapide">📷 Ajouter une photo<input type="file" id="jn-photo-rapide" accept="image/*" multiple hidden></label>
+        ${typeof groupesAvantApres === "function" && groupesAvantApres().length ? `<button class="btn-discret" id="jn-avant-apres">↔ Avant / après</button>` : ""}
+      </div>
       <p class="texte-doux petit">Pour suivre l'évolution d'une culture, garder une trace d'un problème ou comparer d'une année à l'autre. Les photos apparaissent aussi sur la fiche de la plante.</p>
       <details class="accordeon" id="jn-note"><summary>✏️ Écrire une note</summary>
       <div class="ligne-champs deux">
@@ -2523,14 +2534,6 @@ function rendreJournal() {
       </details>
       <div class="journal-liste">${listeJournalHTML()}</div>
     </section>
-    ${Object.keys(totaux).length ? `
-    <section class="carte">
-      <div class="carte-titre"><h2>Récoltes ${annee}</h2></div>
-      <ul class="liste-totaux">${Object.entries(totaux).sort((a, b) => b[1] - a[1]).map(([cle, q]) => {
-        const [nom, unite] = cle.split("|");
-        return `<li><span>${esc(nom)}</span><strong>${formatNombre(q)} ${esc(unite)}</strong></li>`;
-      }).join("")}</ul>
-    </section>` : ""}
     <section class="carte">
       <div class="carte-titre"><h2>Conseils mois par mois</h2></div>
       ${MONTHLY_ADVICE.map(x => `
@@ -2551,6 +2554,8 @@ function rendreJournal() {
     </section>`;
 
   vue.querySelector("#jn-photo-rapide").addEventListener("change", e => { ouvrirPhotoRapide(e.target.files); e.target.value = ""; });
+  const aa = vue.querySelector("#jn-avant-apres");
+  if (aa) aa.addEventListener("click", () => ouvrirAvantApres());
   let fichiersPhotos = [];
   vue.querySelector("#jn-photo").addEventListener("change", e => {
     fichiersPhotos = [...e.target.files].slice(0, 6);

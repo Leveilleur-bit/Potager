@@ -1393,3 +1393,26 @@ em.variete { font-style: normal; font-weight: 400; color: var(--encre-douce); fo
 .idee-fleur small { color: var(--encre-douce); font-size: 0.78rem; line-height: 1.3; }
 :root[data-theme="sombre"] .bf-mois.fleuri { background: #5a2c42; color: #f8dde8; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="clair"]) .bf-mois.fleuri { background: #5a2c42; color: #f8dde8; } }
+
+/* ---------- v28 : accueil « aujourd'hui », cartes repliables, avant/après ---------- */
+.carte-aujourdhui .titre-coach { margin-top: 0.9rem; padding-top: 0.8rem; border-top: 1px solid var(--granit-clair); }
+.carte-repliable > summary { list-style: none; cursor: pointer; display: flex; align-items: center; margin-bottom: 0; }
+.carte-repliable > summary::-webkit-details-marker { display: none; }
+.carte-repliable > summary h2 { flex: 1; }
+.carte-repliable > summary::after { content: "▸"; margin-left: 0.6rem; color: var(--encre-douce); }
+.carte-repliable[open] > summary::after { content: "▾"; }
+.carte-repliable[open] > summary { margin-bottom: 0.7rem; }
+.choix-mode { margin-bottom: 0.6rem; }
+.avant-apres { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin: 0.6rem 0; }
+.avant-apres figure { margin: 0; }
+.avant-apres .aa-img { aspect-ratio: 3 / 4; border-radius: var(--radius-petit); overflow: hidden; background: var(--papier-fonce); }
+.avant-apres img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avant-apres figcaption { font-size: 0.85rem; color: var(--encre-douce); margin-top: 0.25rem; text-align: center; }
+.avant-apres figcaption strong { color: var(--encre); }
+.aa-bande { display: flex; gap: 0.45rem; overflow-x: auto; padding: 5px; }
+.aa-bande .photo-mini { flex: none; width: 58px; height: 58px; position: relative; }
+.aa-bande .photo-mini.choisie-a { outline: 3px solid var(--cidre-vif); outline-offset: 1px; }
+.aa-bande .photo-mini.choisie-b { outline: 3px solid var(--mousse); outline-offset: 1px; }
+.journal-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.journal-actions .btn-photo-rapide { flex: 1; }
+.avant-apres .photo-mini { width: 100%; height: auto; border: 0; }
