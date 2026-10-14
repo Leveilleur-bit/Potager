@@ -25,6 +25,14 @@ const VIVACES = {
       { m: [10, 11], t: "Quand le feuillage est bien jaune ou brun, coupe-le à 5 cm du sol et évacue-le (pas au compost s'il porte des criocères), puis paille ou étale du compost.", alerte: true }
     ]
   },
+  "narcisse": {
+    note: "Les narcisses restent en place et se multiplient d'année en année.",
+    soins: [
+      { m: [2, 3, 4], t: "Floraison : coupe les fleurs fanées, mais laisse le feuillage jaunir seul, il nourrit le bulbe pour l'an prochain." },
+      { m: [5, 6], t: "Quand le feuillage est sec, tu peux le retirer. Ne le coupe jamais encore vert." },
+      { m: [9, 10], t: "Bon moment pour diviser les touffes trop serrées ou en planter de nouveaux." }
+    ]
+  },
   "rhubarbe": {
     note: "La rhubarbe vit des années au même endroit.",
     soins: [
@@ -223,7 +231,9 @@ function problemesDuMoment(cultures, mois = moisCourant()) {
 }
 
 function conseilsSante(cultures) {
-  return problemesDuMoment(cultures).filter(x => x.chezMoi.length).slice(0, 2).map(x => {
+  // Limaces et oiseaux : rappels dédiés au bon moment (saison.js) quand ce sont tes soucis
+  const dedies = typeof conseilsDefense === "function" && typeof prefsJardin === "function" ? prefsJardin().soucis.filter(s => ["limaces", "oiseaux"].includes(s)) : [];
+  return problemesDuMoment(cultures).filter(x => x.chezMoi.length && !dedies.includes(x.p.id)).slice(0, 2).map(x => {
     const noms = x.chezMoi.map(id => nomCourt(planteParId(id)).toLowerCase());
     return {
       type: "conseil", icone: x.p.icone,

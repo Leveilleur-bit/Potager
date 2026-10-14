@@ -1,10 +1,11 @@
 {
-  "version": "26",
-  "date": "2026-10-13",
+  "version": "27",
+  "date": "2026-10-14",
   "nouveautes": [
-    "« ＋ Ajouter une culture » : choisis quoi, où (zone conseillée) et quand, en un seul écran",
-    "Nouvelles plantes : gingembre, aubergine, piment, panais, céleri, verveine citronnelle, laurier-sauce, glaïeul",
-    "Variétés : note la variété, donne ton avis en fin de culture, l'appli s'en souvient l'année suivante",
-    "Journal : « 📷 Ajouter une photo » en premier, la note écrite est repliée"
+    "🍂 Préparer l'hiver : une liste à cocher selon ce qui pousse chez toi (glaïeuls, gingembre, asperges, terre nue…)",
+    "🌻 Bilan de saison : tes avis, l'année en photos et tes envies pour l'an prochain",
+    "✨ Mes envies : note ce que tu veux essayer, le coach te le rappelle au bon moment",
+    "🌼 Fleuri toute l'année : les mois sans fleurs et de quoi les combler (nouvelles : narcisse, tulipe, pensée)",
+    "🐌🐦 Limaces et oiseaux : alertes « temps à limaces » et rappels au bon moment"
   ]
 }

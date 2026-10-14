@@ -10,8 +10,8 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "26";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
-const DATE_VERSION_APP = "2026-10-12";
+const VERSION_APP = "27";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const DATE_VERSION_APP = "2026-10-14";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
 const MOIS_NOMS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
@@ -226,6 +226,11 @@ function migrer(e) {
   e.projets = (Array.isArray(e.projets) ? e.projets : [])
     .filter(pr => pr && PLANTS_DB.some(p => p.id === pr.planteId) && /^\d{4}-\d{2}$/.test(pr.mois || ""))
     .map(pr => ({ id: pr.id || creerId(), planteId: pr.planteId, mois: pr.mois, fait: !!pr.fait }));
+  // Envies pour la saison prochaine et gestes d'hivernage cochés
+  e.envies = (Array.isArray(e.envies) ? e.envies : []).filter(v => v && (v.planteId || v.texte))
+    .map(v => ({ id: v.id || creerId(), planteId: v.planteId && PLANTS_DB.some(p => p.id === v.planteId) ? v.planteId : null, texte: String(v.texte || "").slice(0, 80), cree: typeof v.cree === "string" ? v.cree : null, ...(v.fait ? { fait: true } : {}) }))
+    .filter(v => v.planteId || v.texte);
+  e.hivernage = e.hivernage && typeof e.hivernage === "object" && !Array.isArray(e.hivernage) ? e.hivernage : {};
   e.reglages = Object.assign({ lieu: null, derniereSauvegarde: null }, e.reglages || {});
   let yLibre = 0;
   e.parcelles.forEach(p => {
@@ -439,7 +444,8 @@ function infosCulture(parcelle, coord, contenu) {
   const m = moisCourant();
   const joursDepuis = joursEntre(datePlantation, auj);
   // Les pérennes n'ont pas de « fenêtre » de récolte unique : on suit les mois de récolte
-  const fenetre = typeof estPerenne === "function" && estPerenne(plante) ? null : fenetreRecolte(plante, datePlantation);
+  // Les fleurs non plus : leur « récolte » est la floraison, jamais « en retard »
+  const fenetre = (typeof estPerenne === "function" && estPerenne(plante)) || plante.categorie === "fleur" ? null : fenetreRecolte(plante, datePlantation);
   let statut, progression = null;
 
   if (!fenetre) {
@@ -646,6 +652,8 @@ function genererCoaching() {
     }
   }
 
+  if (typeof conseilsDefense === "function") conseils.push(...conseilsDefense(cultures));
+
   if (majDisponible()) {
     conseils.push({
       type: "conseil", icone: "🔄",
@@ -659,6 +667,7 @@ function genererCoaching() {
 
   // Rappels du plan des 3 mois
   conseils.push(...conseilsDuPlan());
+  if (typeof conseilsEnvies === "function") conseils.push(...conseilsEnvies());
   if (typeof conseilsPerso === "function") conseils.push(...conseilsPerso(cultures));
   if (typeof conseilsVivaces === "function") conseils.push(...conseilsVivaces(cultures), ...conseilsSante(cultures), ...conseilsEau(cultures));
 
@@ -728,7 +737,7 @@ function genererCoaching() {
     conseils.push({
       type: "conseil", icone: "💾",
       titre: derniere ? "Dernière sauvegarde il y a plus de deux semaines" : "Pense à sauvegarder ton potager",
-      texte: "Tes données ne vivent que dans ce navigateur. Active la synchronisation Google Drive ou envoie un fichier de sauvegarde.",
+      texte: "Tes données ne vivent que dans ce navigateur. Active la synchronisation GitHub (Réglages) ou envoie un fichier de sauvegarde.",
       action: { label: "Sauvegarder", vue: "reglages" }
     });
   }
@@ -1009,6 +1018,7 @@ function rendrePlanTroisMois(zone, annee = false) {
       <div class="chips">${categories.map(([id, label]) => `<button class="chip${ui.filtrePlan === id ? " actif" : ""}" data-catplan="${id}">${label}</button>`).join("")}</div>
       <button class="btn-discret" id="p3-agenda" style="margin-top:0.8rem">📅 Ajouter mes rappels à mon agenda</button>
     </section>
+    ${annee && typeof carteEnviesHTML === "function" ? carteEnviesHTML() + carteFleursHTML() : ""}
     ${annee ? carteRefaireHTML() : ""}
     ${projets.length ? `<section class="carte">
       <div class="carte-titre"><h2>Mon plan</h2><span class="carte-sous-titre">${nbAFaire} à faire</span></div>
@@ -1029,6 +1039,7 @@ function rendrePlanTroisMois(zone, annee = false) {
     if (d.open) ui.ouverts.add(d.dataset.k); else ui.ouverts.delete(d.dataset.k);
   }));
   if (annee) brancherRefaire(zone);
+  if (annee && typeof brancherCarteEnvies === "function") { brancherCarteEnvies(zone); brancherFleurs(zone); }
   zone.querySelector("#p3-agenda").addEventListener("click", exporterAgenda);
   zone.querySelectorAll("[data-catplan]").forEach(b => b.addEventListener("click", () => { ui.filtrePlan = b.dataset.catplan; rendreSaisons(); }));
   zone.querySelectorAll("[data-prevoir]").forEach(b => b.addEventListener("click", () => { const [id, cle] = b.dataset.prevoir.split("|"); basculerProjet(id, cle); }));
@@ -1426,6 +1437,7 @@ function rendreAccueil() {
       <div class="carte-titre"><h2>🧑‍🌾 Le coach</h2><span class="carte-sous-titre">cette semaine</span></div>
       <div id="coach"></div>
     </section>
+    ${typeof carteHiverHTML === "function" ? carteHiverHTML() : ""}
     <section class="carte">
       <div class="carte-titre"><h2>En ce moment au potager</h2></div>
       <div id="instantane"></div>
@@ -1445,6 +1457,7 @@ function rendreAccueil() {
 
   rendreJour();
   rendreCoach();
+  if (typeof brancherHiver === "function") brancherHiver(vue);
   if (typeof ecrireResumeMatin === "function") ecrireResumeMatin();
   rendreInstantane();
   rendreBientot();
@@ -1562,6 +1575,8 @@ function rendreCoach() {
   zone.querySelectorAll("[data-coach]").forEach(b => b.addEventListener("click", () => {
     const a = conseils[+b.dataset.coach].action;
     if (a.synchroniser) synchroniser({ manuel: true });
+    else if (a.ajout) ouvrirAjoutCulture({ planteId: a.ajout });
+    else if (a.bilan) ouvrirBilan();
     else if (a.proteger) {
       const cibles = casesNuesSansProtection();
       avecAnnulation(`${PROTECTIONS[a.proteger].label} noté sur ${cibles.length} case${cibles.length > 1 ? "s" : ""}.`, () => protegerCases(cibles, a.proteger));
@@ -2828,7 +2843,7 @@ function toast(message, { annuler } = {}) {
    Version de l'appli : vérification et mise à jour
    ============================================================ */
 
-const FICHIERS_APPLI = ["./", "index.html", "css/style.css", "js/app.js", "js/plants-data.js", "js/extras.js", "js/aide.js", "js/icones.js", "js/jardin.js", "js/perso.js", "js/ajout.js", "js/sync.js", "manifest.json", "sw.js"];
+const FICHIERS_APPLI = ["./", "index.html", "css/style.css", "js/app.js", "js/plants-data.js", "js/extras.js", "js/aide.js", "js/icones.js", "js/jardin.js", "js/perso.js", "js/ajout.js", "js/saison.js", "js/sync.js", "manifest.json", "sw.js"];
 
 async function verifierVersion() {
   ui.verifEnCours = true;

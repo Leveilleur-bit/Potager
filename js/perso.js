@@ -96,17 +96,9 @@ function conseilsPerso(cultures) {
         : "Les jeunes pousses de pois, fèves et salades sont vite picorées : un voile ou un filet tendu sur arceaux jusqu'à ce qu'elles aient quelques feuilles."
     });
   }
-  // Une touche de fleurs, si de la place est libre et que la saison s'y prête
-  const fleurs = PLANTS_DB.filter(p => p.categorie === "fleur" && moisPourPlante(p).has(m));
-  const { libres } = compterCases();
-  if (fleurs.length && libres > 0 && !cultures.some(c => c.plante.categorie === "fleur" && joursEntre(c.datePlantation, aujourdhui()) < 40)) {
-    const choix = fleurs.sort((a, b) => (COMPAGNONS[b.id] ? COMPAGNONS[b.id].amis.size : 0) - (COMPAGNONS[a.id] ? COMPAGNONS[a.id].amis.size : 0)).slice(0, 3);
-    conseils.push({
-      type: "conseil", icone: "🌼", titre: "Une touche de couleur ce mois-ci",
-      texte: `Pour un potager beau et vivant : ${listeFr(choix.map(p => nomCourt(p).toLowerCase()))}. Ils attirent les pollinisateurs et les auxiliaires qui mangent les pucerons.`,
-      action: { label: "Voir les idées", vue: "saisons", sousVue: "plan" }
-    });
-  }
+  // Des fleurs toute l'année (mois creux d'abord), voir saison.js
+  const fl = typeof conseilFleurs === "function" ? conseilFleurs(cultures) : null;
+  if (fl) conseils.push(fl);
   return conseils;
 }
 

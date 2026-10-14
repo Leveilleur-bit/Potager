@@ -1353,3 +1353,43 @@ em.variete { font-style: normal; font-weight: 400; color: var(--encre-douce); fo
 /* Journal : photo d'abord */
 .btn-photo-rapide { display: flex; justify-content: center; align-items: center; width: 100%; font-size: 1.05rem; padding: 0.85rem; cursor: pointer; margin-bottom: 0.4rem; }
 .photo-mini.grande { width: 96px; height: 96px; }
+
+/* ---------- v27 : fin de saison (hiver, bilan, envies, fleurs) ---------- */
+.tache-hiver { display: flex; align-items: flex-start; gap: 0.55rem; padding: 0.5rem 0; border-bottom: 1px dashed var(--granit-clair); cursor: pointer; line-height: 1.4; }
+.tache-hiver:last-of-type { border-bottom: 0; }
+.tache-hiver input { width: 1.25rem; height: 1.25rem; margin: 0.1rem 0 0; flex: none; accent-color: var(--mousse); }
+.tache-hiver .th-icone { flex: none; font-size: 1.1rem; }
+.tache-hiver .th-texte { flex: 1; }
+.tache-hiver.faite .th-texte { color: var(--encre-douce); text-decoration: line-through; text-decoration-color: var(--granit); }
+.tache-hiver .lien-bouton { flex: none; align-self: center; }
+.carte-hiver .coach-plus { margin-top: 0.4rem; }
+
+.liste-envies { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.7rem; }
+.envie { display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.6rem; background: var(--papier); border-radius: var(--radius-petit); }
+.envie-nom { flex: 1; font-weight: 600; display: flex; align-items: center; gap: 0.35rem; min-width: 0; }
+.envie-quand { font-size: 0.85rem; color: var(--encre-douce); white-space: nowrap; }
+.envie-quand.maintenant { color: var(--mousse-fonce); font-weight: 600; }
+.envie.realisee { opacity: 0.65; }
+.envie.realisee .envie-quand { color: var(--mousse-fonce); }
+.envie-form { display: flex; gap: 0.5rem; }
+.envie-form input { flex: 1; min-width: 0; }
+
+.bilan-ligne { padding: 0.35rem 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+.bilan-ligne > .texte-doux { flex-basis: 100%; margin: 0 0 0 1.9rem; }
+.bilan-avis .bilan-boutons { margin-left: auto; display: flex; gap: 0.3rem; }
+.bilan-avis .chip { padding: 0.25rem 0.55rem; font-size: 1.05rem; }
+.bilan-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 0.4rem; }
+.bilan-photos .photo-mini { width: 100%; height: auto; aspect-ratio: 1; position: relative; }
+.bilan-photos .photo-mini span { position: absolute; left: 0; right: 0; bottom: 0; font-size: 0.7rem; color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.55)); padding: 0.6rem 0.3rem 0.15rem; text-align: left; }
+
+.bande-fleurs { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; margin: 0.3rem 0 0.6rem; }
+.bf-mois { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 2.6rem; border-radius: 6px; background: var(--papier-fonce); color: var(--encre-douce); font-size: 0.8rem; font-weight: 600; }
+.bf-mois i { font-style: normal; font-size: 0.9rem; line-height: 1; color: #c2457a; }
+.bf-mois.fleuri { background: #f8dde8; color: #7a2e50; }
+.bf-mois.courant { outline: 2px solid var(--mousse); outline-offset: 1px; }
+.idees-fleurs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.45rem; margin-top: 0.4rem; }
+.idee-fleur { display: flex; align-items: center; gap: 0.5rem; text-align: left; padding: 0.5rem 0.6rem; border: 1px solid var(--granit-clair); border-radius: var(--radius-petit); background: var(--carte-fond); color: var(--encre); font: inherit; cursor: pointer; }
+.idee-fleur span { display: flex; flex-direction: column; }
+.idee-fleur small { color: var(--encre-douce); font-size: 0.78rem; line-height: 1.3; }
+:root[data-theme="sombre"] .bf-mois.fleuri { background: #5a2c42; color: #f8dde8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="clair"]) .bf-mois.fleuri { background: #5a2c42; color: #f8dde8; } }

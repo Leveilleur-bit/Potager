@@ -107,6 +107,14 @@ const DESSINS = {
   "verveine": () => trait("M24 44 L24 12", "#7d9a5a", 1.8) + [[38, -60], [38, 60], [30, -50], [30, 50], [22, -40], [22, 40]].map(([y, a]) => feuille(24, y, 13, 2.6, a, "#9cc65a")).join("") + feuille(24, 15, 9, 2.4, 0, "#b5d870"),
   "laurier": () => trait("M14 42 Q22 30 34 10", "#6b5236", 2) + [[17, 37, -70], [20, 32, 60], [23, 28, -65], [26, 23, 55], [29, 18, -60], [32, 14, 50]].map(([x, y, a]) => feuille(x, y, 11, 4.2, a, "#2f5b33")).join(""),
   "glaieul": () => trait("M24 44 L24 8", COUL.v2, 2) + feuille(24, 44, 22, 2.4, -12, COUL.v3, false) + feuille(24, 44, 20, 2.4, 14, COUL.v3, false) + [[10, -1], [16, 1], [22, -1], [28, 1]].map(([y, s]) => `<path d="M24 ${y} q${s * 8} 2 ${s * 6} 7 q${-s * 4} 1 ${-s * 6} -3Z" fill="#f08cae"/><circle cx="${24 + s * 3}" cy="${y + 3}" r="2.6" fill="#f6a8c2"/>`).join(""),
+  "narcisse": () => trait("M24 44 L24 18", COUL.v2, 2) + feuille(24, 44, 24, 2.2, -14, COUL.v3, false) + feuille(24, 44, 22, 2.2, 16, COUL.v3, false)
+    + fleur(24, 15, 12, 6, "#fff6cf", "#f4c430", 0.45, 0) + `<circle cx="24" cy="15" r="4.6" fill="${COUL.orange}"/><circle cx="24" cy="15" r="2.6" fill="#f7a94a"/>`,
+  "tulipe": () => trait("M24 44 L24 22", COUL.v2, 2.2) + feuille(24, 44, 20, 5, -24, COUL.v3, false) + feuille(24, 44, 18, 5, 26, COUL.v4, false)
+    + `<path d="M15 12 L19 16 L24 9 L29 16 L33 12 Q34 26 24 26 Q14 26 15 12Z" fill="${COUL.rouge}"/>` + `<path d="M24 9 L28 16 Q27 24 24 26 Q21 24 20 16Z" fill="#ef6a5a"/>`,
+  "pensee": () => ombreSol(24, 15) + feuille(14, 42, 11, 5, -60, COUL.v2) + feuille(34, 42, 11, 5, 60, COUL.v2)
+    + `<ellipse cx="18" cy="16" rx="7" ry="8" fill="${COUL.violet}"/><ellipse cx="30" cy="16" rx="7" ry="8" fill="${COUL.violet}"/>`
+    + `<ellipse cx="15" cy="26" rx="7" ry="6.5" fill="${COUL.jaune}"/><ellipse cx="33" cy="26" rx="7" ry="6.5" fill="${COUL.jaune}"/><ellipse cx="24" cy="31" rx="8" ry="7" fill="${COUL.jaune}"/>`
+    + `<path d="M24 24 L19 32 M24 24 L24 34 M24 24 L29 32" stroke="#5a2d7a" stroke-width="1.6" stroke-linecap="round"/><circle cx="24" cy="24" r="2.4" fill="#f08c00"/>`,
   // --- Aromatiques
   "persil": () => trait("M24 44 L16 24 M24 44 L24 18 M24 44 L32 24", COUL.v2, 1.6)
     + [[16, 21], [24, 15], [32, 21]].map(([x, y]) => [[0, 0], [-4, 2], [4, 2], [-2.5, -3.5], [2.5, -3.5], [0, 4]].map(([dx, dy]) => rond(x + dx, y + dy, 3, COUL.v1, false)).join("")).join(""),
