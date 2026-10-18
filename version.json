@@ -1,10 +1,9 @@
 {
-  "version": "28",
-  "date": "2026-10-14",
+  "version": "29",
+  "date": "2026-10-18",
   "nouveautes": [
-    "Accueil plus léger : une carte « Aujourd'hui » avec les 3 choses qui comptent, météo et gestes du mois repliables",
-    "Saisons en 4 onglets : Mon année, Quoi planter, Rotation, Santé",
-    "↔ Avant / après : compare les photos d'un même bac ou d'une même culture au fil des mois",
-    "Retirés : réserve de graines, récoltes de l'année et frise (tes données restent sauvegardées)"
+    "Coach : glisse un conseil sur le côté (ou touche ✓) quand il est pris en compte, le suivant prend sa place",
+    "Les alertes reviennent le lendemain si elles sont toujours d'actualité, les autres conseils dans deux semaines",
+    "« Tout revoir » pour retrouver les conseils mis de côté"
   ]
 }

@@ -10,8 +10,8 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "28";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
-const DATE_VERSION_APP = "2026-10-14";
+const VERSION_APP = "29";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const DATE_VERSION_APP = "2026-10-18";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
 const MOIS_NOMS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
@@ -232,6 +232,9 @@ function migrer(e) {
     .map(v => ({ id: v.id || creerId(), planteId: v.planteId && PLANTS_DB.some(p => p.id === v.planteId) ? v.planteId : null, texte: String(v.texte || "").slice(0, 80), cree: typeof v.cree === "string" ? v.cree : null, ...(v.fait ? { fait: true } : {}) }))
     .filter(v => v.planteId || v.texte);
   e.hivernage = e.hivernage && typeof e.hivernage === "object" && !Array.isArray(e.hivernage) ? e.hivernage : {};
+  const auj = isoLocal();
+  e.coachVus = Object.fromEntries(Object.entries(e.coachVus && typeof e.coachVus === "object" ? e.coachVus : {})
+    .filter(([k, v]) => typeof v === "string" && v >= auj).slice(-80));
   e.reglages = Object.assign({ lieu: null, derniereSauvegarde: null }, e.reglages || {});
   let yLibre = 0;
   e.parcelles.forEach(p => {
@@ -1557,9 +1560,61 @@ function rendreBientot() {
 }
 
 // Les alertes d'abord, puis les conseils, l'astuce en dernier : les 3 premiers font « aujourd'hui » (et la notification du matin)
-function coachingTrie() {
+// Les conseils « pris en compte » (glissés sur le côté) sont mis de côté un temps, puis reviennent s'ils sont toujours d'actualité
+function coachingTrie({ tous = false } = {}) {
   const RANG = { alerte: 0, conseil: 1, astuce: 2 };
-  return genererCoaching().map((c, i) => [c, i]).sort((a, b) => (RANG[a[0].type] ?? 1) - (RANG[b[0].type] ?? 1) || a[1] - b[1]).map(x => x[0]);
+  return genererCoaching().filter(c => tous || !estMisDeCote(c))
+    .map((c, i) => [c, i]).sort((a, b) => (RANG[a[0].type] ?? 1) - (RANG[b[0].type] ?? 1) || a[1] - b[1]).map(x => x[0]);
+}
+function cleConseil(c) { return (c.icone || "") + "|" + c.titre; }
+function estMisDeCote(c) {
+  const jusqua = (etat.coachVus || {})[cleConseil(c)];
+  return !!jusqua && jusqua >= isoLocal();
+}
+// Alertes et astuce du jour : jusqu'à demain. Conseils : deux semaines.
+function mettreDeCote(c) {
+  if (!etat.coachVus || typeof etat.coachVus !== "object") etat.coachVus = {};
+  const jours = c.type === "conseil" ? 14 : 0;
+  etat.coachVus[cleConseil(c)] = isoLocal(ajouterJours(aujourdhui(), jours));
+  sauvegarder();
+}
+function remettreConseil(c) {
+  if (etat.coachVus) delete etat.coachVus[cleConseil(c)];
+  sauvegarder();
+}
+function nbConseilsMisDeCote() { return genererCoaching().filter(estMisDeCote).length; }
+
+// Glisser un conseil vers la gauche ou la droite pour le marquer « pris en compte »
+function brancherGlisserConseil(el, surFin) {
+  let x0 = null, y0 = null, dx = 0, actif = false, id = null;
+  el.addEventListener("pointerdown", e => {
+    if (e.target.closest("button, a") || (e.pointerType === "mouse" && e.button !== 0)) return;
+    x0 = e.clientX; y0 = e.clientY; dx = 0; actif = false; id = e.pointerId;
+  });
+  el.addEventListener("pointermove", e => {
+    if (x0 === null || e.pointerId !== id) return;
+    const ddx = e.clientX - x0, ddy = e.clientY - y0;
+    if (!actif) {
+      if (Math.abs(ddy) > 10 && Math.abs(ddy) > Math.abs(ddx)) { x0 = null; return; }   // défilement vertical
+      if (Math.abs(ddx) < 10) return;
+      actif = true; el.setPointerCapture(id); el.classList.add("glisse");
+    }
+    dx = ddx;
+    el.style.transform = `translateX(${dx}px)`;
+    el.style.opacity = String(Math.max(0.25, 1 - Math.abs(dx) / el.offsetWidth));
+  });
+  const fin = () => {
+    if (x0 === null) return;
+    x0 = null;
+    el.classList.remove("glisse");
+    if (!actif) return;
+    if (Math.abs(dx) > el.offsetWidth * 0.3) {
+      el.style.transform = `translateX(${dx > 0 ? "110%" : "-110%"})`; el.style.opacity = "0";
+      setTimeout(surFin, 180);
+    } else { el.style.transform = ""; el.style.opacity = ""; }
+  };
+  el.addEventListener("pointerup", fin);
+  el.addEventListener("pointercancel", () => { x0 = null; el.classList.remove("glisse"); el.style.transform = ""; el.style.opacity = ""; });
 }
 
 function rendreCoach() {
@@ -1568,20 +1623,46 @@ function rendreCoach() {
   const conseils = coachingTrie();
   const VISIBLES = 3;
   const item = (c, i) => `
-    <div class="coach-item coach-${c.type}">
+    <div class="coach-item coach-${c.type}" data-conseil="${i}">
       <span class="coach-icone" aria-hidden="true">${c.icone}</span>
       <div class="coach-corps">
         <div class="coach-titre">${esc(c.titre)}</div>
         <div class="coach-texte">${esc(c.texte)}</div>
         ${c.action ? `<button class="lien-bouton" data-coach="${i}">${esc(c.action.label)}</button>` : ""}
       </div>
+      <button class="coach-vu" data-vu="${i}" aria-label="Pris en compte" title="Pris en compte">✓</button>
     </div>`;
   const reste = conseils.length - VISIBLES;
-  zone.innerHTML = conseils.slice(0, VISIBLES).map(item).join("") + (reste > 0 ? `
+  const misDeCote = nbConseilsMisDeCote();
+  let astuceVue = false;
+  try { astuceVue = !!localStorage.getItem("potagerBretonGlisser"); } catch (e) { astuceVue = true; }
+  zone.innerHTML = (conseils.length ? "" : `<p class="vide">Rien d'autre pour aujourd'hui : profite du jardin ! 🌿</p>`)
+    + conseils.slice(0, VISIBLES).map(item).join("")
+    + (!astuceVue && conseils.length ? `<p class="texte-doux petit coach-astuce-glisser">👉 Fait ou noté ? Glisse le conseil sur le côté (ou touche ✓) : le suivant prend sa place.</p>` : "")
+    + (reste > 0 ? `
     <details class="coach-plus">
       <summary>${reste} autre${reste > 1 ? "s" : ""} conseil${reste > 1 ? "s" : ""}, moins urgent${reste > 1 ? "s" : ""}</summary>
       ${conseils.slice(VISIBLES).map((c, i) => item(c, i + VISIBLES)).join("")}
-    </details>` : "");
+    </details>` : "")
+    + (misDeCote ? `<button class="lien-bouton coach-revoir" id="coach-revoir">${misDeCote} conseil${misDeCote > 1 ? "s" : ""} pris en compte · tout revoir</button>` : "");
+  const prendreEnCompte = i => {
+    const c = conseils[i];
+    mettreDeCote(c);
+    try { localStorage.setItem("potagerBretonGlisser", "1"); } catch (e) { /* rien */ }
+    const ouvert = !!zone.querySelector("details.coach-plus[open]");
+    rendreCoach();
+    if (ouvert) { const d = zone.querySelector("details.coach-plus"); if (d) d.open = true; }
+    if (typeof ecrireResumeMatin === "function") ecrireResumeMatin();
+    toast("Pris en compte.", { annuler: () => { remettreConseil(c); rendreCoach(); toast("Conseil remis."); } });
+  };
+  zone.querySelectorAll("[data-conseil]").forEach(el => brancherGlisserConseil(el, () => prendreEnCompte(+el.dataset.conseil)));
+  zone.querySelectorAll("[data-vu]").forEach(b => b.addEventListener("click", () => {
+    const el = b.closest(".coach-item");
+    el.style.transform = "translateX(110%)"; el.style.opacity = "0";
+    setTimeout(() => prendreEnCompte(+b.dataset.vu), 180);
+  }));
+  const revoir = zone.querySelector("#coach-revoir");
+  if (revoir) revoir.addEventListener("click", () => { etat.coachVus = {}; sauvegarder(); rendreCoach(); });
   zone.querySelectorAll("[data-coach]").forEach(b => b.addEventListener("click", () => {
     const a = conseils[+b.dataset.coach].action;
     if (a.synchroniser) synchroniser({ manuel: true });
