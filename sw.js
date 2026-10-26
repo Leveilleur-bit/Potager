@@ -14,7 +14,7 @@
    nouvelle version.
    ============================================================ */
 
-const CACHE_VERSION = "v29";
+const CACHE_VERSION = "v30";
 const CACHE_NAME = "potager-breton-" + CACHE_VERSION;
 
 const FICHIERS_A_METTRE_EN_CACHE = [
@@ -31,6 +31,8 @@ const FICHIERS_A_METTRE_EN_CACHE = [
   "./js/perso.js",
   "./js/ajout.js",
   "./js/saison.js",
+  "./js/prochaine.js",
+  "./js/diagnostic.js",
   "./js/sync.js",
   "./icon-192.png",
   "./icon-512.png"

@@ -10,8 +10,8 @@ const CLE_STOCKAGE = "potagerBretonState";
 const CLE_METEO = "potagerBretonMeteo";
 const VERSION_DONNEES = 3;
 const MAX_CULTURES_PAR_CASE = 5;
-const VERSION_APP = "29";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
-const DATE_VERSION_APP = "2026-10-18";
+const VERSION_APP = "30";                 // à incrémenter à chaque livraison (avec version.json et sw.js)
+const DATE_VERSION_APP = "2026-10-26";
 const U = 100; // 1 mètre = 100 unités dans les plans SVG
 
 const MOIS_NOMS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
@@ -232,6 +232,18 @@ function migrer(e) {
     .map(v => ({ id: v.id || creerId(), planteId: v.planteId && PLANTS_DB.some(p => p.id === v.planteId) ? v.planteId : null, texte: String(v.texte || "").slice(0, 80), cree: typeof v.cree === "string" ? v.cree : null, ...(v.fait ? { fait: true } : {}) }))
     .filter(v => v.planteId || v.texte);
   e.hivernage = e.hivernage && typeof e.hivernage === "object" && !Array.isArray(e.hivernage) ? e.hivernage : {};
+  e.prochaineSaison = e.prochaineSaison && typeof e.prochaineSaison === "object" && !Array.isArray(e.prochaineSaison) ? e.prochaineSaison : {};
+  Object.keys(e.prochaineSaison).forEach(an => {
+    const plan = e.prochaineSaison[an];
+    if (!/^\d{4}$/.test(an) || !plan || typeof plan !== "object") { delete e.prochaineSaison[an]; return; }
+    Object.keys(plan).forEach(pid => {
+      if (!e.parcelles.some(p => p.id === pid) || typeof plan[pid] !== "object") { delete plan[pid]; return; }
+      Object.keys(plan[pid]).forEach(c => {
+        const l = Array.isArray(plan[pid][c]) ? [...new Set(plan[pid][c].filter(id => PLANTS_DB.some(p => p.id === id)))] : [];
+        if (l.length) plan[pid][c] = l; else delete plan[pid][c];
+      });
+    });
+  });
   const auj = isoLocal();
   e.coachVus = Object.fromEntries(Object.entries(e.coachVus && typeof e.coachVus === "object" ? e.coachVus : {})
     .filter(([k, v]) => typeof v === "string" && v >= auj).slice(-80));
@@ -344,9 +356,15 @@ function estFrileuse(plante) {
 }
 
 // Les cultures présentes dans une case (valides uniquement)
-function culturesDe(parcelle, coord) {
+// Pendant le dessin du plan de l'an prochain, les cases montrent ce qui est prévu (voir prochaine.js)
+let PLAN_FUTUR = null;
+function culturesReelles(parcelle, coord) {
   const v = parcelle.cases[coord];
   return Array.isArray(v) ? v.filter(c => c && planteParId(c.planteId)) : [];
+}
+function culturesDe(parcelle, coord) {
+  if (PLAN_FUTUR && typeof contenuFutur === "function") return contenuFutur(parcelle, coord, PLAN_FUTUR);
+  return culturesReelles(parcelle, coord);
 }
 function ajouterCulture(parcelle, coord, donnees) {
   if (!Array.isArray(parcelle.cases[coord])) parcelle.cases[coord] = [];
@@ -672,6 +690,7 @@ function genererCoaching() {
   // Rappels du plan des 3 mois
   conseils.push(...conseilsDuPlan());
   if (typeof conseilsEnvies === "function") conseils.push(...conseilsEnvies());
+  if (typeof conseilsPotagerFutur === "function") conseils.push(...conseilsPotagerFutur());
   if (typeof conseilsPerso === "function") conseils.push(...conseilsPerso(cultures));
   if (typeof conseilsVivaces === "function") conseils.push(...conseilsVivaces(cultures), ...conseilsSante(cultures), ...conseilsEau(cultures));
 
@@ -807,6 +826,9 @@ function libelleCase(parcelle, x, y) {
 // Meilleur emplacement pour une plante : case libre sans mauvais voisin ni
 // rotation gênante, ou case déjà occupée par de bons compagnons (aromates, fleurs)
 function meilleureCase(plante, dateRef = aujourdhui()) {
+  // La case choisie dans « Mon potager de l'année » passe en premier
+  const prevue = typeof caseFuturePour === "function" ? caseFuturePour(plante, dateRef.getFullYear()) : null;
+  if (prevue) return prevue;
   const petite = plante.categorie === "aromate" || plante.categorie === "fleur";
   let meilleur = null;
   etat.parcelles.forEach(parcelle => {
@@ -1022,6 +1044,7 @@ function rendrePlanTroisMois(zone, annee = false) {
       <div class="chips">${categories.map(([id, label]) => `<button class="chip${ui.filtrePlan === id ? " actif" : ""}" data-catplan="${id}">${label}</button>`).join("")}</div>
       <button class="btn-discret" id="p3-agenda" style="margin-top:0.8rem">📅 Ajouter mes rappels à mon agenda</button>
     </section>
+    ${annee && typeof cartePotagerFuturHTML === "function" ? cartePotagerFuturHTML() : ""}
     ${annee && typeof carteEnviesHTML === "function" ? carteEnviesHTML() + carteFleursHTML() : ""}
     ${annee ? carteRefaireHTML() : ""}
     ${projets.length ? `<section class="carte">
@@ -1044,6 +1067,7 @@ function rendrePlanTroisMois(zone, annee = false) {
   }));
   if (annee) brancherRefaire(zone);
   if (annee && typeof brancherCarteEnvies === "function") { brancherCarteEnvies(zone); brancherFleurs(zone); }
+  if (annee && typeof brancherPotagerFutur === "function") brancherPotagerFutur(zone);
   zone.querySelector("#p3-agenda").addEventListener("click", exporterAgenda);
   zone.querySelectorAll("[data-catplan]").forEach(b => b.addEventListener("click", () => { ui.filtrePlan = b.dataset.catplan; rendreSaisons(); }));
   zone.querySelectorAll("[data-prevoir]").forEach(b => b.addEventListener("click", () => { const [id, cle] = b.dataset.prevoir.split("|"); basculerProjet(id, cle); }));
@@ -1207,7 +1231,11 @@ function legendePlanHTML(mode) {
     ${[...prot].map(t => `<span>${PROTECTIONS[t].icone} ${esc(PROTECTIONS[t].label)}</span>`).join("")}</div>`;
 }
 
-function dessinerPlan(conteneur, { edition = false, echelle = null } = {}) {
+function dessinerPlan(conteneur, options = {}) {
+  PLAN_FUTUR = options.futur || null;
+  try { dessinerPlanInterne(conteneur, options); } finally { PLAN_FUTUR = null; }
+}
+function dessinerPlanInterne(conteneur, { edition = false, echelle = null, futur = null, surCase = null } = {}) {
   conteneur.innerHTML = "";
   if (!etat.parcelles.length) {
     conteneur.innerHTML = `<p class="vide">Ajoute une parcelle pour voir apparaître le plan de ton potager.</p>`;
@@ -1261,8 +1289,8 @@ function dessinerPlan(conteneur, { edition = false, echelle = null } = {}) {
     return degrades.get(cle);
   };
 
-  const statuts = statutsParCase();
-  const mode = lireVuePlan();
+  const statuts = futur ? {} : statutsParCase();
+  const mode = futur ? "rotation" : lireVuePlan();
   const zonesBacs = [];
 
   // Sol en gazon, maison et boussole
@@ -1320,7 +1348,7 @@ function dessinerPlan(conteneur, { edition = false, echelle = null } = {}) {
         const rect = document.createElementNS(NS, "rect");
         Object.entries({ x: gx + x * cw + 2, y: gy + y * ch + 2, width: cw - 4, height: ch - 4, rx: Math.min(cw, ch) * 0.45 })
           .forEach(([k, v]) => rect.setAttribute(k, v));
-        const prot = protectionDe(parcelle, coord);
+        const prot = futur ? null : protectionDe(parcelle, coord);
         rect.setAttribute("class", "plan-case plan-zone-culture" + (plantes.length ? " occupee" : "") + (prot ? " protegee prot-" + prot.type : ""));
         rect.style.fill = (plantes.length || mode === "soleil") ? remplissage(couleursCase(parcelle, coord, mode))
           : prot ? (prot.type === "paillage" ? `url(#${prefixe}paille)` : prot.type === "voile" ? "rgba(240,244,246,.55)" : "rgba(120,150,170,.45)")
@@ -1329,7 +1357,7 @@ function dessinerPlan(conteneur, { edition = false, echelle = null } = {}) {
           rect.setAttribute("tabindex", "0");
           rect.setAttribute("role", "button");
           rect.setAttribute("aria-label", parcelle.nom + ", case " + (x + 1) + "-" + (y + 1) + (plantes.length ? " : " + plantes.map(pl => pl.nom).join(", ") : " : vide"));
-          const ouvrir = () => ouvrirApercuCase(parcelle.id, x, y);
+          const ouvrir = () => surCase ? surCase(parcelle.id, x, y) : ouvrirApercuCase(parcelle.id, x, y);
           rect.addEventListener("click", ouvrir);
           rect.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ouvrir(); } });
         }
@@ -2929,7 +2957,7 @@ function toast(message, { annuler } = {}) {
    Version de l'appli : vérification et mise à jour
    ============================================================ */
 
-const FICHIERS_APPLI = ["./", "index.html", "css/style.css", "js/app.js", "js/plants-data.js", "js/extras.js", "js/aide.js", "js/icones.js", "js/jardin.js", "js/perso.js", "js/ajout.js", "js/saison.js", "js/sync.js", "manifest.json", "sw.js"];
+const FICHIERS_APPLI = ["./", "index.html", "css/style.css", "js/app.js", "js/plants-data.js", "js/extras.js", "js/aide.js", "js/icones.js", "js/jardin.js", "js/perso.js", "js/ajout.js", "js/saison.js", "js/prochaine.js", "js/diagnostic.js", "js/sync.js", "manifest.json", "sw.js"];
 
 async function verifierVersion() {
   ui.verifEnCours = true;

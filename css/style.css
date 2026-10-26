@@ -1424,3 +1424,17 @@ em.variete { font-style: normal; font-weight: 400; color: var(--encre-douce); fo
 .coach-vu:hover, .coach-vu:focus-visible { opacity: 1; }
 .coach-astuce-glisser { margin: 0.2rem 0 0.4rem; }
 .coach-revoir { display: block; margin-top: 0.6rem; font-size: 0.85rem; }
+
+/* ---------- v30 : potager de l'an prochain, diagnostic ---------- */
+.futur-actions { margin: 0.4rem 0 0.7rem; justify-content: flex-start; }
+.futur-bac { padding: 0.5rem 0; border-bottom: 1px dashed var(--granit-clair); }
+.futur-bac:last-child { border-bottom: 0; }
+.futur-bac-titre { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.futur-plantes { margin-top: 0.25rem; font-size: 0.9rem; }
+.diag-cause { border: 1px solid var(--granit-clair); border-radius: var(--radius-petit); padding: 0.55rem 0.7rem; margin-bottom: 0.5rem; background: var(--carte-fond); }
+.diag-cause > summary { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; cursor: pointer; list-style: none; }
+.diag-cause > summary::-webkit-details-marker { display: none; }
+.diag-cause h4 { margin: 0.6rem 0 0.15rem; font-size: 0.85rem; color: var(--encre-douce); }
+.diag-cause p { margin: 0; }
+.carte-diagnostic .chips { margin-bottom: 0.4rem; }
+.diag-cause > summary .tag-info { white-space: nowrap; }

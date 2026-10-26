@@ -1,9 +1,9 @@
 {
-  "version": "29",
-  "date": "2026-10-18",
+  "version": "30",
+  "date": "2026-10-26",
   "nouveautes": [
-    "Coach : glisse un conseil sur le côté (ou touche ✓) quand il est pris en compte, le suivant prend sa place",
-    "Les alertes reviennent le lendemain si elles sont toujours d'actualité, les autres conseils dans deux semaines",
-    "« Tout revoir » pour retrouver les conseils mis de côté"
+    "🗺️ Mon potager 2027 (Saisons → Mon année) : un brouillon de la saison prochaine sur ton vrai plan, proposé bac par bac (rotation, soleil, bons voisins, tes envies et tes avis), à ajuster case par case",
+    "Au printemps, les cases prévues deviennent les emplacements conseillés",
+    "🔎 Qu'est-ce qui cloche ? (Saisons → Santé) : choisis ce que tu vois, l'appli propose les causes probables et quoi faire"
   ]
 }

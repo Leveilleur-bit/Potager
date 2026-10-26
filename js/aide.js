@@ -261,6 +261,7 @@ function rendreSante(zone) {
     </details>`;
   const maintenant = liste.filter(x => x.chezMoi.length), voisines = liste.filter(x => !x.chezMoi.length);
   zone.innerHTML = `
+    ${typeof carteDiagnosticHTML === "function" ? carteDiagnosticHTML() : ""}
     <section class="carte carte-coach3">
       <div class="carte-titre"><h2>Santé du potager</h2></div>
       <p class="intro-coach">Les maladies et ravageurs les plus courants en Bretagne : quand ils arrivent, comment les reconnaître, et surtout comment les prévenir sans produits agressifs. Un potager varié, aéré et paillé en limite déjà beaucoup.</p>
@@ -273,6 +274,7 @@ function rendreSante(zone) {
   zone.querySelectorAll("details[data-k]").forEach(d => d.addEventListener("toggle", () => {
     if (d.open) ui.ouverts.add(d.dataset.k); else ui.ouverts.delete(d.dataset.k);
   }));
+  if (typeof brancherDiagnostic === "function") brancherDiagnostic(zone);
 }
 
 /* ---------- Arrosage et météo ---------- */
